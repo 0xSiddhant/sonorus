@@ -2,7 +2,7 @@ module.exports = {
   extends: ['@commitlint/config-conventional'],
   rules: {
     // Allowed types — must match .agents/rules/git.md
-    'type-enum': [2, 'always', ['feat', 'fix', 'refactor', 'style', 'chore', 'docs', 'test']],
+    'type-enum': [2, 'always', ['feat', 'fix', 'refactor', 'style', 'chore', 'docs', 'test', 'ci', 'build', 'perf', 'revert']],
     // Lowercase subject
     'subject-case': [2, 'always', 'lower-case'],
     // No trailing period

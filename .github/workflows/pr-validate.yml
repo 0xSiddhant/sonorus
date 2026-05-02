@@ -23,6 +23,10 @@ jobs:
             chore
             docs
             test
+            ci
+            build
+            perf
+            revert
           requireScope: false
           subjectPattern: ^[a-z].+[^.]$
           subjectPatternError: |
@@ -40,6 +44,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: wagoid/commitlint-action@v6
+      - uses: wagoid/commitlint-action@v5
         with:
           configFile: commitlint.config.js

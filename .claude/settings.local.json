@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git -C /Users/siddhantkumar/Desktop/sonorus status)",
-      "Bash(git -C /Users/siddhantkumar/Desktop/sonorus diff --stat)"
-    ]
-  }
-}
