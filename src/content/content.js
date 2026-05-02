@@ -24,6 +24,8 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 let currentText = "";
 let pillHideTimer = null;
+let currentCharIndex = 0;  // absolute char position in currentText
+let currentCharOffset = 0; // start offset of the current utterance within currentText
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
@@ -154,9 +156,12 @@ function startTTS(text) {
   }
   stopTTS(false);
   currentText = text;
+  currentCharIndex = 0;
+  currentCharOffset = 0;
 
   showPill();
   setPillState("loading");
+  updateProgressBar();
 
   currentUtterance = new SpeechSynthesisUtterance(text);
   currentUtterance.rate = settings.defaultSpeed;
@@ -167,6 +172,11 @@ function startTTS(text) {
     currentUtterance.voice = voice;
     currentUtterance.lang = voice.lang;
   }
+
+  currentUtterance.onboundary = (e) => {
+    currentCharIndex = currentCharOffset + e.charIndex;
+    updateProgressBar();
+  };
 
   currentUtterance.onstart = () => {
     setPillState("playing");
@@ -189,6 +199,9 @@ function startTTS(text) {
   };
 
   currentUtterance.onend = () => {
+    currentCharIndex = 0;
+    currentCharOffset = 0;
+    updateProgressBar();
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
     pillHideTimer = setTimeout(() => {
@@ -221,6 +234,8 @@ function stopTTS(hidePillAfter = true) {
   speechSynthesis.cancel();
   currentUtterance = null;
   currentText = "";
+  currentCharIndex = 0;
+  currentCharOffset = 0;
   if (hidePillAfter) {
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
@@ -229,6 +244,15 @@ function stopTTS(hidePillAfter = true) {
 }
 
 // ─── Pill Player ──────────────────────────────────────────────────────────────
+
+function updateProgressBar() {
+  const bar = document.getElementById("sonorus-progress-bar");
+  if (!bar) return;
+  const pct = currentText.length > 0
+    ? Math.min(100, (currentCharIndex / currentText.length) * 100)
+    : 0;
+  bar.style.width = `${pct}%`;
+}
 
 function buildVoiceOptions() {
   const grouped = {};
@@ -280,6 +304,7 @@ function showPill() {
     </div>
     <select id="sonorus-voice" title="Voice">${buildVoiceOptions()}</select>
     <button id="sonorus-close" title="Close">✕</button>
+    <div id="sonorus-progress-wrap"><div id="sonorus-progress-bar"></div></div>
   `;
 
   const savedPos = sessionStorage.getItem("sonorus-pill-pos");
@@ -390,13 +415,16 @@ function onSpeedChange(e) {
 
   if (currentUtterance && currentText) {
     const wasPaused = speechSynthesis.paused;
+    const resumeOffset = currentCharIndex;
+    currentUtterance.onboundary = null;
     currentUtterance.onstart = null;
     currentUtterance.onend = null;
     currentUtterance.onerror = null;
     currentUtterance.onpause = null;
     currentUtterance.onresume = null;
     speechSynthesis.cancel();
-    currentUtterance = new SpeechSynthesisUtterance(currentText);
+    currentCharOffset = resumeOffset;
+    currentUtterance = new SpeechSynthesisUtterance(currentText.slice(resumeOffset));
     currentUtterance.rate = rate;
     currentUtterance.pitch = settings.pitch;
     const voice = getSelectedVoice();
@@ -415,13 +443,16 @@ function onVoiceChange(e) {
   chrome.storage.sync.set({ selectedVoiceName: e.target.value });
 
   if (currentText && speechSynthesis.speaking) {
+    const resumeOffset = currentCharIndex;
+    currentUtterance.onboundary = null;
     currentUtterance.onstart = null;
     currentUtterance.onend = null;
     currentUtterance.onerror = null;
     currentUtterance.onpause = null;
     currentUtterance.onresume = null;
     speechSynthesis.cancel();
-    currentUtterance = new SpeechSynthesisUtterance(currentText);
+    currentCharOffset = resumeOffset;
+    currentUtterance = new SpeechSynthesisUtterance(currentText.slice(resumeOffset));
     currentUtterance.rate = settings.defaultSpeed;
     currentUtterance.pitch = settings.pitch;
     const voice = getSelectedVoice();
@@ -435,6 +466,10 @@ function onVoiceChange(e) {
 }
 
 function attachUtteranceEvents(utt) {
+  utt.onboundary = (e) => {
+    currentCharIndex = currentCharOffset + e.charIndex;
+    updateProgressBar();
+  };
   utt.onstart = () => {
     setPillState("playing");
     notifyBackground({
@@ -453,6 +488,9 @@ function attachUtteranceEvents(utt) {
     notifyBackground({ type: "TTS_RESUMED" });
   };
   utt.onend = () => {
+    currentCharIndex = 0;
+    currentCharOffset = 0;
+    updateProgressBar();
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
     pillHideTimer = setTimeout(() => {

@@ -195,6 +195,31 @@
   text-overflow: ellipsis;
 }
 
+/* Progress bar */
+#sonorus-pill {
+  overflow: hidden;
+}
+
+#sonorus-progress-wrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(167, 139, 250, 0.15);
+}
+
+#sonorus-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--sonorus-purple);
+  transition: width 0.25s ease;
+}
+
+#sonorus-pill[data-theme="light"] #sonorus-progress-bar {
+  background: var(--sonorus-purple);
+}
+
 /* Error state */
 #sonorus-pill[data-state="error"] {
   border-color: #ef4444 !important;

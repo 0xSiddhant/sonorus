@@ -1,0 +1,3 @@
+# Sonorus — Claude Instructions
+
+@.agents
