@@ -184,23 +184,6 @@
   cursor: pointer;
 }
 
-#sonorus-volume-wrap {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-}
-
-.sonorus-vol-icon {
-  font-size: 14px;
-  line-height: 1;
-}
-
-#sonorus-volume {
-  width: 55px;
-  cursor: pointer;
-}
-
 #sonorus-voice {
   border: 1px solid;
   border-radius: 8px;
