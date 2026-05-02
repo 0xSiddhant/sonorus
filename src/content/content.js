@@ -31,7 +31,7 @@ async function init() {
   settings = { ...DEFAULT_SETTINGS, ...stored }
 
   const hostname = location.hostname.replace(/^www\./, '')
-  if (!settings.enabled || settings.blockedSites.includes(hostname)) return
+  if (!settings.enabled || settings.blockedSites.some(b => hostname === b || hostname.endsWith('.' + b))) return
 
   loadVoices()
   speechSynthesis.onvoiceschanged = loadVoices

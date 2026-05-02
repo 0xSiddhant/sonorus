@@ -1,5 +1,9 @@
 /* Sonorus — popup.js */
 
+function isSiteBlocked(hostname, blockedSites) {
+  return blockedSites.some(b => hostname === b || hostname.endsWith('.' + b))
+}
+
 const statusDot = document.getElementById('status-dot')
 const statusLabel = document.getElementById('status-label')
 const statusText = document.getElementById('status-text')
@@ -24,7 +28,7 @@ async function init() {
   siteHostname.textContent = currentTabHostname || '—'
 
   const { blockedSites = [] } = await chrome.storage.sync.get({ blockedSites: [] })
-  siteToggle.checked = !blockedSites.includes(currentTabHostname)
+  siteToggle.checked = !isSiteBlocked(currentTabHostname, blockedSites)
 
   chrome.runtime.sendMessage({ type: 'GET_STATE' }, (state) => {
     if (chrome.runtime.lastError) {
@@ -91,9 +95,9 @@ siteToggle.addEventListener('change', async () => {
   const { blockedSites = [] } = await chrome.storage.sync.get({ blockedSites: [] })
   let updated
   if (siteToggle.checked) {
-    updated = blockedSites.filter(s => s !== currentTabHostname)
+    updated = blockedSites.filter(s => currentTabHostname !== s && !currentTabHostname.endsWith('.' + s))
   } else {
-    if (!blockedSites.includes(currentTabHostname)) {
+    if (!isSiteBlocked(currentTabHostname, blockedSites)) {
       updated = [...blockedSites, currentTabHostname]
     } else {
       updated = blockedSites
