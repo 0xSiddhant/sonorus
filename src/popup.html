@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sonorus</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="popup-title">
+        <span class="popup-wand">🪄</span>
+        <span class="popup-name">Sonorus</span>
+      </div>
+      <span class="popup-version">v1.0.0</span>
+    </header>
+
+    <section class="popup-status-section">
+      <div class="status-row">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-label">Idle</span>
+      </div>
+      <div id="status-text" class="status-text"></div>
+    </section>
+
+    <section class="popup-controls-section" id="popup-controls">
+      <button id="btn-pause" class="ctrl-btn">❚❚ Pause</button>
+      <button id="btn-stop" class="ctrl-btn ctrl-btn-danger">■ Stop</button>
+    </section>
+
+    <section class="popup-idle-section" id="popup-idle">
+      <p class="idle-hint">Select text on any page to begin</p>
+    </section>
+
+    <section class="popup-site-section">
+      <div class="site-row">
+        <div>
+          <div class="site-label">This site</div>
+          <div class="site-hostname" id="site-hostname"></div>
+        </div>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="site-toggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <footer class="popup-footer">
+      <button id="btn-settings" class="settings-btn">⚙ Open Settings</button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

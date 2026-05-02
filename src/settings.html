@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sonorus Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="page-container">
+    <header class="page-header">
+      <div class="header-brand">
+        <span class="header-wand">🪄</span>
+        <span class="header-name">Sonorus</span>
+        <span class="header-tagline">Settings</span>
+      </div>
+      <span class="header-version">v1.0.0</span>
+    </header>
+
+    <main class="settings-main">
+
+      <!-- Section 1: General -->
+      <section class="settings-section">
+        <h2 class="section-title">General</h2>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Enable Sonorus</div>
+            <div class="setting-desc">Master switch — disables all injection when off</div>
+          </div>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="s-enabled" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Show floating icon on selection</div>
+            <div class="setting-desc">Display the 🔊 icon near selected text</div>
+          </div>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="s-showPopupIcon" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Minimum characters to trigger</div>
+            <div class="setting-desc">Selection must be at least this many characters</div>
+          </div>
+          <input type="number" id="s-minChars" class="num-input" min="1" max="500" value="20">
+        </div>
+      </section>
+
+      <!-- Section 2: Blocked Sites -->
+      <section class="settings-section">
+        <h2 class="section-title">Blocked Sites</h2>
+
+        <div class="add-site-row">
+          <input type="text" id="s-site-input" class="text-input" placeholder="youtube.com or paste full URL">
+          <button id="s-site-add" class="btn-primary">Add</button>
+        </div>
+
+        <div id="s-blocked-list" class="blocked-list">
+          <div class="empty-state" id="s-blocked-empty">No blocked sites. Sonorus is active everywhere.</div>
+        </div>
+      </section>
+
+      <!-- Section 3: Voice -->
+      <section class="settings-section">
+        <h2 class="section-title">Voice</h2>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Voice</div>
+            <div class="setting-desc">Select voice for text-to-speech</div>
+          </div>
+          <div class="voice-controls">
+            <select id="s-voice" class="select-input">
+              <option value="">Loading voices…</option>
+            </select>
+            <button id="s-voice-demo" class="btn-icon" title="Preview voice">🔊</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Pitch</div>
+            <div class="setting-desc">Voice pitch (0.5 – 2.0)</div>
+          </div>
+          <div class="slider-group">
+            <span class="slider-val" id="s-pitch-val">1.0</span>
+            <input type="range" id="s-pitch" min="0.5" max="2" step="0.1" value="1.0" class="slider-input">
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4: Playback -->
+      <section class="settings-section">
+        <h2 class="section-title">Playback</h2>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Default speed</div>
+            <div class="setting-desc">Starting playback rate for every new utterance</div>
+          </div>
+          <div class="slider-group">
+            <span class="slider-val" id="s-speed-val">1.0x</span>
+            <input type="range" id="s-defaultSpeed" min="0.5" max="2" step="0.25" value="1.0" class="slider-input">
+          </div>
+        </div>
+
+        <div class="speed-presets">
+          <span class="presets-label">Quick:</span>
+          <button class="preset-btn" data-speed="0.75">0.75x</button>
+          <button class="preset-btn" data-speed="1">1x</button>
+          <button class="preset-btn" data-speed="1.25">1.25x</button>
+          <button class="preset-btn" data-speed="1.5">1.5x</button>
+          <button class="preset-btn" data-speed="2">2x</button>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Speed step</div>
+            <div class="setting-desc">Increment per click on speed control in pill</div>
+          </div>
+          <select id="s-speedStep" class="select-input select-small">
+            <option value="0.1">0.1</option>
+            <option value="0.25" selected>0.25</option>
+            <option value="0.5">0.5</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Section 5: Appearance -->
+      <section class="settings-section">
+        <h2 class="section-title">Appearance</h2>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Pill default position</div>
+            <div class="setting-desc">Where the pill appears when first shown</div>
+          </div>
+          <select id="s-pillPosition" class="select-input">
+            <option value="bottom-left">Bottom Left</option>
+            <option value="bottom-center" selected>Bottom Center</option>
+            <option value="bottom-right">Bottom Right</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Pill theme</div>
+            <div class="setting-desc">Color scheme for the floating player</div>
+          </div>
+          <select id="s-pillTheme" class="select-input">
+            <option value="auto" selected>Auto (system)</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Section 6: About -->
+      <section class="settings-section about-section">
+        <h2 class="section-title">About</h2>
+        <div class="about-block">
+          <div class="about-title">Sonorus <span class="about-version">v1.0.0</span></div>
+          <div class="about-tagline">"Amplify every word." — Inspired by the HP spell Sonorus</div>
+          <div class="about-tech">Built with Web Speech API · Chrome Extensions Manifest V3 · Vanilla JS</div>
+          <div class="about-links">
+            <a href="https://chromewebstore.google.com" target="_blank" class="about-link">⭐ Rate on Web Store</a>
+            <a href="https://github.com" target="_blank" class="about-link">GitHub</a>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <div class="save-toast" id="save-toast">Settings saved</div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

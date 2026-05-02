@@ -1,0 +1,202 @@
+/* Sonorus — content.css */
+
+:root {
+  --sonorus-bg-dark: #1A0A2E;
+  --sonorus-purple: #7C3AED;
+  --sonorus-purple-light: #A78BFA;
+  --sonorus-purple-pale: #DDD6FE;
+  --sonorus-gold: #FCD34D;
+  --sonorus-text: #F5F3FF;
+  --sonorus-text-muted: #C4B5FD;
+  --sonorus-pill-height: 48px;
+  --sonorus-pill-radius: 24px;
+}
+
+/* ── Floating popup icon ─────────────────────────────────────────────────── */
+
+#sonorus-popup-icon {
+  position: absolute;
+  z-index: 2147483646;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--sonorus-bg-dark);
+  border: 2px solid var(--sonorus-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  user-select: none;
+  pointer-events: all;
+}
+
+#sonorus-popup-icon.sonorus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+#sonorus-popup-icon:hover {
+  background: var(--sonorus-purple);
+  border-color: var(--sonorus-purple-pale);
+  transform: scale(1.1);
+}
+
+/* ── Pill player ─────────────────────────────────────────────────────────── */
+
+#sonorus-pill {
+  position: fixed;
+  z-index: 2147483647;
+  height: var(--sonorus-pill-height);
+  min-width: 360px;
+  max-width: 90vw;
+  border-radius: var(--sonorus-pill-radius);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(124, 58, 237, 0.3);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  user-select: none;
+  pointer-events: all;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+}
+
+#sonorus-pill.sonorus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Light theme */
+#sonorus-pill[data-theme="light"] {
+  background: #ffffff;
+  color: #1a0a2e;
+  border: 1px solid #e5e7eb;
+}
+#sonorus-pill[data-theme="light"] button,
+#sonorus-pill[data-theme="light"] select {
+  color: #1a0a2e;
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+#sonorus-pill[data-theme="light"] input[type="range"] {
+  accent-color: var(--sonorus-purple);
+}
+
+/* Dark theme (default) */
+#sonorus-pill[data-theme="dark"],
+#sonorus-pill:not([data-theme]) {
+  background: var(--sonorus-bg-dark);
+  color: var(--sonorus-text);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+}
+#sonorus-pill[data-theme="dark"] button,
+#sonorus-pill:not([data-theme]) button {
+  color: var(--sonorus-text);
+  background: rgba(124, 58, 237, 0.2);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+#sonorus-pill[data-theme="dark"] select,
+#sonorus-pill:not([data-theme]) select {
+  color: var(--sonorus-text);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+#sonorus-pill[data-theme="dark"] input[type="range"],
+#sonorus-pill:not([data-theme]) input[type="range"] {
+  accent-color: var(--sonorus-purple-light);
+}
+
+/* Pill elements */
+#sonorus-drag {
+  cursor: grab;
+  font-size: 16px;
+  opacity: 0.6;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+#sonorus-drag:active { cursor: grabbing; }
+
+#sonorus-speaker {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+#sonorus-pill[data-state="playing"] #sonorus-speaker {
+  animation: sonorus-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sonorus-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+#sonorus-pill button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+
+#sonorus-pill button:hover {
+  transform: scale(1.1);
+  background: var(--sonorus-purple) !important;
+  color: white !important;
+  border-color: var(--sonorus-purple) !important;
+}
+
+#sonorus-close {
+  font-size: 11px !important;
+  opacity: 0.7;
+}
+
+#sonorus-speed-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sonorus-speed-label {
+  font-size: 11px;
+  min-width: 32px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+#sonorus-speed {
+  width: 70px;
+  cursor: pointer;
+}
+
+#sonorus-voice {
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Error state */
+#sonorus-pill[data-state="error"] {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px #ef4444;
+}

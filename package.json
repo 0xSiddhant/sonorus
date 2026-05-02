@@ -1,0 +1,12 @@
+{
+  "name": "sonorus-extension",
+  "version": "1.0.0",
+  "description": "Sonorus Chrome Extension build scripts",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "package": "npm run build"
+  },
+  "devDependencies": {
+    "archiver": "^6.0.0"
+  }
+}
