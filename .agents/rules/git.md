@@ -44,6 +44,10 @@ Follow **Conventional Commits**. Every commit must match:
 | `chore` | Build scripts, config, tooling |
 | `docs` | Documentation only |
 | `test` | Tests only |
+| `ci` | CI/CD workflow changes |
+| `build` | Build system or dependency changes |
+| `perf` | Performance improvement |
+| `revert` | Reverts a previous commit |
 
 ### Examples
 
