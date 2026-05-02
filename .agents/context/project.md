@@ -25,7 +25,13 @@ sonorus/
 │   │   ├── icon48.png          ← Extensions page icon (placeholder)
 │   │   └── icon128.png         ← Chrome Web Store icon (placeholder — replace before publishing)
 │   ├── content/
-│   │   ├── content.js          ← Injected into every page: selection detection, TTS engine, pill UI
+│   │   ├── content-state.js    ← Shared globals (loaded first — only file that declares let vars)
+│   │   ├── content-tts.js      ← TTS engine: startTTS, stopTTS, attachUtteranceEvents
+│   │   ├── content-popup-icon.js ← Floating 🔊 icon shown on text selection
+│   │   ├── content-pill.js     ← Pill player UI + control handlers (speed, voice, play/pause)
+│   │   ├── content-drag.js     ← Drag-to-reposition logic for the pill
+│   │   ├── content-selection.js ← Mouse selection detection, showPopupIconIfNeeded
+│   │   ├── content-main.js     ← Boot (init) + message handler (loaded last)
 │   │   └── content.css         ← Styles for floating popup icon + pill player
 │   ├── popup/
 │   │   ├── popup.html          ← Toolbar icon click → mini dashboard
@@ -94,7 +100,10 @@ All communication is via `chrome.runtime.sendMessage` / `chrome.tabs.sendMessage
 | background → content | `CMD_PAUSE` | Background relays pause command to content |
 | background → content | `CMD_STOP` | Background relays stop command to content |
 
-`content.js` wraps all `sendMessage` calls in a `notifyBackground(msg)` helper that silences errors when the extension context is invalidated (e.g. after a reload).
+`content-state.js` defines `notifyBackground(msg)` — a helper that wraps all `sendMessage` calls and silences errors when the extension context is invalidated (e.g. after a reload).
+
+### Content script file split
+`content/` is split into 7 files injected in order via `manifest.json`. They all share the same global scope — no bundler or ES modules needed. Load order: `content-state.js` first (declares all shared globals), then TTS/UI/drag/selection modules, then `content-main.js` last (calls `init()`). Never re-declare a shared global with `let`/`const` outside of `content-state.js`.
 
 ---
 
