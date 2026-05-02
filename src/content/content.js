@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   selectedVoiceName: '',
   pitch: 1.0,
   defaultSpeed: 1.0,
+  defaultVolume: 1.0,
   speedStep: 0.25,
   pillPosition: 'bottom-center',
   pillTheme: 'auto',
@@ -149,6 +150,7 @@ function startTTS(text) {
   currentUtterance = new SpeechSynthesisUtterance(text)
   currentUtterance.rate = settings.defaultSpeed
   currentUtterance.pitch = settings.pitch
+  currentUtterance.volume = settings.defaultVolume
 
   const voice = getSelectedVoice()
   if (voice) {
@@ -250,6 +252,10 @@ function showPill() {
       <span class="sonorus-speed-label" id="sonorus-speed-val">${settings.defaultSpeed}x</span>
       <input id="sonorus-speed" type="range" min="0.5" max="2" step="${settings.speedStep}" value="${settings.defaultSpeed}" title="Speed">
     </div>
+    <div id="sonorus-volume-wrap">
+      <span class="sonorus-vol-icon" id="sonorus-vol-icon">${volumeIcon(settings.defaultVolume)}</span>
+      <input id="sonorus-volume" type="range" min="0" max="1" step="0.1" value="${settings.defaultVolume}" title="Volume">
+    </div>
     <select id="sonorus-voice" title="Voice">${buildVoiceOptions()}</select>
     <button id="sonorus-close" title="Close">✕</button>
   `
@@ -274,6 +280,7 @@ function showPill() {
   document.getElementById('sonorus-stop').addEventListener('click', () => stopTTS())
   document.getElementById('sonorus-close').addEventListener('click', () => stopTTS())
   document.getElementById('sonorus-speed').addEventListener('input', onSpeedChange)
+  document.getElementById('sonorus-volume').addEventListener('input', onVolumeChange)
   document.getElementById('sonorus-voice').addEventListener('change', onVoiceChange)
 
   // Drag
@@ -329,6 +336,13 @@ function resolvePillTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+function volumeIcon(vol) {
+  if (vol === 0) return '🔇'
+  if (vol < 0.4) return '🔈'
+  if (vol < 0.75) return '🔉'
+  return '🔊'
+}
+
 // ─── Pill control handlers ────────────────────────────────────────────────────
 
 function onPlayPause() {
@@ -351,6 +365,28 @@ function onSpeedChange(e) {
     currentUtterance = new SpeechSynthesisUtterance(currentText)
     currentUtterance.rate = rate
     currentUtterance.pitch = settings.pitch
+    currentUtterance.volume = settings.defaultVolume
+    const voice = getSelectedVoice()
+    if (voice) { currentUtterance.voice = voice; currentUtterance.lang = voice.lang }
+    attachUtteranceEvents(currentUtterance)
+    speechSynthesis.speak(currentUtterance)
+    if (wasPaused) speechSynthesis.pause()
+  }
+}
+
+function onVolumeChange(e) {
+  const vol = parseFloat(e.target.value)
+  settings.defaultVolume = vol
+  const icon = document.getElementById('sonorus-vol-icon')
+  if (icon) icon.textContent = volumeIcon(vol)
+
+  if (currentUtterance && currentText) {
+    const wasPaused = speechSynthesis.paused
+    speechSynthesis.cancel()
+    currentUtterance = new SpeechSynthesisUtterance(currentText)
+    currentUtterance.rate = settings.defaultSpeed
+    currentUtterance.pitch = settings.pitch
+    currentUtterance.volume = vol
     const voice = getSelectedVoice()
     if (voice) { currentUtterance.voice = voice; currentUtterance.lang = voice.lang }
     attachUtteranceEvents(currentUtterance)
@@ -368,6 +404,7 @@ function onVoiceChange(e) {
     currentUtterance = new SpeechSynthesisUtterance(currentText)
     currentUtterance.rate = settings.defaultSpeed
     currentUtterance.pitch = settings.pitch
+    currentUtterance.volume = settings.defaultVolume
     const voice = getSelectedVoice()
     if (voice) { currentUtterance.voice = voice; currentUtterance.lang = voice.lang }
     attachUtteranceEvents(currentUtterance)

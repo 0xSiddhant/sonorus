@@ -8,6 +8,7 @@ const DEFAULTS = {
   selectedVoiceName: '',
   pitch: 1.0,
   defaultSpeed: 1.0,
+  defaultVolume: 1.0,
   speedStep: 0.25,
   pillPosition: 'bottom-center',
   pillTheme: 'auto',
@@ -104,6 +105,7 @@ function getFormValues() {
     selectedVoiceName: document.getElementById('s-voice').value,
     pitch: parseFloat(document.getElementById('s-pitch').value),
     defaultSpeed: parseFloat(document.getElementById('s-defaultSpeed').value),
+    defaultVolume: parseFloat(document.getElementById('s-defaultVolume').value),
     speedStep: parseFloat(document.getElementById('s-speedStep').value),
     pillPosition: document.getElementById('s-pillPosition').value,
     pillTheme: document.getElementById('s-pillTheme').value,
@@ -133,6 +135,9 @@ function applyToForm(data) {
 
   document.getElementById('s-defaultSpeed').value = data.defaultSpeed
   document.getElementById('s-speed-val').textContent = `${parseFloat(data.defaultSpeed).toFixed(2).replace(/\.?0+$/, '')}x`
+
+  document.getElementById('s-defaultVolume').value = data.defaultVolume
+  document.getElementById('s-volume-val').textContent = `${Math.round(data.defaultVolume * 100)}%`
 
   document.getElementById('s-speedStep').value = String(data.speedStep)
   document.getElementById('s-pillPosition').value = data.pillPosition
@@ -164,6 +169,11 @@ function wire() {
   document.getElementById('s-defaultSpeed').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value)
     document.getElementById('s-speed-val').textContent = `${v}x`
+    save()
+  })
+
+  document.getElementById('s-defaultVolume').addEventListener('input', (e) => {
+    document.getElementById('s-volume-val').textContent = `${Math.round(parseFloat(e.target.value) * 100)}%`
     save()
   })
 
@@ -206,6 +216,7 @@ function wire() {
     if (voice) { utt.voice = voice; utt.lang = voice.lang }
     utt.rate = parseFloat(document.getElementById('s-defaultSpeed').value)
     utt.pitch = parseFloat(document.getElementById('s-pitch').value)
+    utt.volume = parseFloat(document.getElementById('s-defaultVolume').value)
     speechSynthesis.speak(utt)
   })
 }

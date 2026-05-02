@@ -9,14 +9,14 @@ const ROOT = path.resolve(__dirname, '..')
 const REQUIRED_FILES = [
   'manifest.json',
   'background.js',
-  'content.js',
-  'content.css',
-  'popup.html',
-  'popup.js',
-  'popup.css',
-  'settings.html',
-  'settings.js',
-  'settings.css',
+  'content/content.js',
+  'content/content.css',
+  'popup/popup.html',
+  'popup/popup.js',
+  'popup/popup.css',
+  'settings/settings.html',
+  'settings/settings.js',
+  'settings/settings.css',
   'icons/icon16.png',
   'icons/icon48.png',
   'icons/icon128.png',
@@ -38,6 +38,9 @@ console.log(`Building Sonorus v${version}...\n`)
 if (fs.existsSync(DIST)) fs.rmSync(DIST, { recursive: true })
 fs.mkdirSync(DIST)
 fs.mkdirSync(path.join(DIST, 'icons'))
+fs.mkdirSync(path.join(DIST, 'popup'))
+fs.mkdirSync(path.join(DIST, 'settings'))
+fs.mkdirSync(path.join(DIST, 'content'))
 
 const copyFile = (rel) => {
   fs.copyFileSync(path.join(SRC, rel), path.join(DIST, rel))
