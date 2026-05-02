@@ -1,0 +1,45 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  # ── Check 1: PR title follows conventional commit format ──────────────────────
+  # The PR title becomes the squash-merge commit message on develop/main.
+  validate-title:
+    name: PR title (conventional commit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            refactor
+            style
+            chore
+            docs
+            test
+          requireScope: false
+          subjectPattern: ^[a-z].+[^.]$
+          subjectPatternError: |
+            PR title subject must:
+            - start with a lowercase letter
+            - not end with a period
+            Example: "feat: add speed control to pill player"
+
+  # ── Check 2: Every individual commit message follows the same rules ───────────
+  validate-commits:
+    name: Commit messages (commitlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: wagoid/commitlint-action@v6
+        with:
+          configFile: commitlint.config.js

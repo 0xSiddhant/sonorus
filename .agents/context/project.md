@@ -37,10 +37,15 @@ sonorus/
 │       └── settings.css
 ├── scripts/
 │   └── build.js                ← Validates src/, copies to dist/, zips for Chrome Web Store
+├── .github/
+│   └── workflows/
+│       ├── release.yml         ← Auto-releases on push to main (version bump + zip + GitHub Release)
+│       └── pr-validate.yml     ← Blocks PRs with non-conventional commit messages
 ├── .agents/
 │   ├── context/project.md      ← This file
 │   ├── memory/                 ← Persistent AI memory across sessions
 │   └── rules/git.md            ← Branch, commit, and PR rules for agents
+├── commitlint.config.js        ← Commitlint rules used by pr-validate.yml
 ├── package.json                ← Only dev dep: archiver (for build.js zip step)
 └── .gitignore                  ← Ignores: dist/, *.zip, node_modules/, .DS_Store
 ```
@@ -111,3 +116,46 @@ npm run build     # validates src/ → copies to dist/ → zips to sonorus-v1.0.
 - Replace placeholder icons in `src/icons/` with proper designs
 - Add screenshots (1280×800px) and promo tile (440×280px) to `assets/`
 - Register at Chrome Web Store developer console ($5 one-time fee)
+
+---
+
+## CI/CD — GitHub Actions
+
+### `release.yml` — triggered on push to `main`
+
+Runs automatically when a PR from `develop` merges into `main`.
+
+| Step | What happens |
+|---|---|
+| Get current version | Reads latest git tag (e.g. `v1.2.3`). Falls back to `1.0.0` on first run. |
+| Determine bump | Analyzes commit messages since last tag using conventional commit types |
+| Calculate new version | Applies major / minor / patch bump |
+| Stamp version | Updates `manifest.json` + version badge in `settings/settings.html` |
+| Build | `npm run build` → produces `sonorus-v{version}.zip` |
+| Tag | Creates and pushes git tag `v{version}` — this becomes the source of truth for the next run |
+| Release | Creates a GitHub Release with the zip attached and auto-generated notes |
+
+**Bump rules:**
+
+| Commit type | Bump |
+|---|---|
+| `type!:` or `BREAKING CHANGE` in body | major |
+| `feat:` | minor |
+| `fix:`, `chore:`, `refactor:`, `style:`, `docs:`, `test:` | patch |
+
+### `pr-validate.yml` — triggered on every PR event
+
+Two parallel jobs block a PR until both pass:
+
+- **Validate PR title** — checks the PR title follows `<type>: <subject>` format (`amannn/action-semantic-pull-request`). The PR title is the squash-merge commit message, so this directly controls what lands in git history.
+- **Validate commit messages** — runs commitlint on every individual commit in the PR branch (`wagoid/commitlint-action` + `commitlint.config.js`).
+
+Rules enforced (mirrors `.agents/rules/git.md`):
+- Type must be one of: `feat`, `fix`, `refactor`, `style`, `chore`, `docs`, `test`
+- Subject must be lowercase, no trailing period, max 72 chars total
+
+### Agent rules — what NOT to do
+
+- **Never edit `manifest.json` version manually** — `release.yml` owns it; manual edits will cause version conflicts on the next release run
+- **Never rename the zip output** — `sonorus-v{version}.zip` is derived from `manifest.json`; the release workflow expects this exact filename
+- **Commit messages and PR titles must follow conventional commit format** — `pr-validate.yml` will block the PR otherwise
