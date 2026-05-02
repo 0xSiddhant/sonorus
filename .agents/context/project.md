@@ -41,6 +41,9 @@ sonorus/
 │       ├── settings.html       ← Full settings page (opened in new tab)
 │       ├── settings.js         ← All preference controls, auto-saves to chrome.storage.sync
 │       └── settings.css
+├── docs/
+│   ├── web-speech-api-limitations.md ← Known Chrome speechSynthesis bugs + workarounds used in the codebase
+│   └── chrome-tts-vs-speech-synthesis.md ← chrome.tts API explained + why speechSynthesis was chosen instead
 ├── scripts/
 │   └── build.js                ← Validates src/, copies to dist/, zips for Chrome Web Store
 ├── .github/
@@ -61,9 +64,11 @@ sonorus/
 ## Key Architectural Decisions
 
 ### Web Speech API, not `chrome.tts`
-`window.speechSynthesis` is used directly in `content.js` (content script). This gives access to 20–40+ system + Google voices. `chrome.tts` is only available in extension pages (background/popup), not content scripts, and would require routing all TTS through background.js.
+`window.speechSynthesis` is used directly in content scripts. This gives access to 20–40+ system + Google voices. See `docs/chrome-tts-vs-speech-synthesis.md` for a full comparison — the short reason is that `chrome.tts` is unavailable in content scripts and would require routing every TTS call through `background.js` via message passing.
 
-**Known limitation:** `SpeechSynthesisUtterance.volume` is ignored by Chrome on macOS — system volume controls audio instead. Volume control was intentionally removed from the UI for this reason.
+**Known limitations** — see `docs/web-speech-api-limitations.md` for full details:
+- `speechSynthesis.pause()` / `resume()` are broken in Chrome. The codebase uses a cancel+restart workaround via `resumeTTS()` and tracks position with `onboundary` + `isTTSPaused`.
+- `SpeechSynthesisUtterance.volume` is ignored on macOS — volume control was intentionally removed from the UI.
 
 ### Vanilla JS, no bundler
 No React, no Webpack, no TypeScript. Edit files in `src/`, reload the extension in `chrome://extensions` — changes are live instantly. Only run `npm run build` for Chrome Web Store submission.

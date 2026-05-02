@@ -70,12 +70,24 @@ function showPill() {
   document.body.appendChild(pillEl);
   requestAnimationFrame(() => pillEl?.classList.add("sonorus-visible"));
 
-  document.getElementById("sonorus-playpause").addEventListener("click", onPlayPause);
-  document.getElementById("sonorus-stop").addEventListener("click", () => stopTTS());
-  document.getElementById("sonorus-close").addEventListener("click", () => stopTTS());
-  document.getElementById("sonorus-speed").addEventListener("input", onSpeedChange);
-  document.getElementById("sonorus-voice").addEventListener("change", onVoiceChange);
-  document.getElementById("sonorus-drag").addEventListener("mousedown", onDragStart);
+  document
+    .getElementById("sonorus-playpause")
+    .addEventListener("click", onPlayPause);
+  document
+    .getElementById("sonorus-stop")
+    .addEventListener("click", () => stopTTS());
+  document
+    .getElementById("sonorus-close")
+    .addEventListener("click", () => stopTTS());
+  document
+    .getElementById("sonorus-speed")
+    .addEventListener("input", onSpeedChange);
+  document
+    .getElementById("sonorus-voice")
+    .addEventListener("change", onVoiceChange);
+  document
+    .getElementById("sonorus-drag")
+    .addEventListener("mousedown", onDragStart);
 }
 
 function applyDefaultPillPosition() {
@@ -130,25 +142,35 @@ function setPillState(state) {
 function resolvePillTheme() {
   if (settings.pillTheme === "light") return "light";
   if (settings.pillTheme === "dark") return "dark";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 function updateProgressBar() {
   const bar = document.getElementById("sonorus-progress-bar");
   if (!bar) return;
-  const pct = currentText.length > 0
-    ? Math.min(100, (currentCharIndex / currentText.length) * 100)
-    : 0;
+  const pct =
+    currentText.length > 0
+      ? Math.min(100, (currentCharIndex / currentText.length) * 100)
+      : 0;
   bar.style.width = `${pct}%`;
 }
 
 // ─── Pill control handlers ────────────────────────────────────────────────────
 
 function onPlayPause() {
-  if (speechSynthesis.paused) {
-    speechSynthesis.resume();
+  if (isTTSPaused) {
+    // speechSynthesis.resume() is broken in Chrome — restart from the last tracked word position.
+    isTTSPaused = false;
+    resumeTTS();
+    setPillState("playing");
+    notifyBackground({ type: "TTS_RESUMED" });
   } else if (speechSynthesis.speaking) {
     speechSynthesis.pause();
+    isTTSPaused = true;
+    setPillState("paused");
+    notifyBackground({ type: "TTS_PAUSED" });
   }
 }
 
@@ -158,56 +180,18 @@ function onSpeedChange(e) {
   const label = document.getElementById("sonorus-speed-val");
   if (label) label.textContent = `${rate}x`;
 
-  if (currentUtterance && currentText) {
-    const wasPaused = speechSynthesis.paused;
-    // Resume from the current word rather than restarting from the beginning.
-    const resumeOffset = currentCharIndex;
-    currentUtterance.onboundary = null;
-    currentUtterance.onstart = null;
-    currentUtterance.onend = null;
-    currentUtterance.onerror = null;
-    currentUtterance.onpause = null;
-    currentUtterance.onresume = null;
-    speechSynthesis.cancel();
-    currentCharOffset = resumeOffset;
-    currentUtterance = new SpeechSynthesisUtterance(currentText.slice(resumeOffset));
-    currentUtterance.rate = rate;
-    currentUtterance.pitch = settings.pitch;
-    const voice = getSelectedVoice();
-    if (voice) {
-      currentUtterance.voice = voice;
-      currentUtterance.lang = voice.lang;
-    }
-    attachUtteranceEvents(currentUtterance);
-    speechSynthesis.speak(currentUtterance);
-    if (wasPaused) speechSynthesis.pause();
-  }
+  // If paused, don't restart — resumeTTS() reads settings.defaultSpeed so the
+  // new rate will be picked up automatically when the user clicks play.
+  if (!currentText || isTTSPaused) return;
+  if (speechSynthesis.speaking) resumeTTS();
 }
 
 function onVoiceChange(e) {
   settings.selectedVoiceName = e.target.value;
   chrome.storage.sync.set({ selectedVoiceName: e.target.value });
 
-  if (currentText && speechSynthesis.speaking) {
-    // Resume from the current word rather than restarting from the beginning.
-    const resumeOffset = currentCharIndex;
-    currentUtterance.onboundary = null;
-    currentUtterance.onstart = null;
-    currentUtterance.onend = null;
-    currentUtterance.onerror = null;
-    currentUtterance.onpause = null;
-    currentUtterance.onresume = null;
-    speechSynthesis.cancel();
-    currentCharOffset = resumeOffset;
-    currentUtterance = new SpeechSynthesisUtterance(currentText.slice(resumeOffset));
-    currentUtterance.rate = settings.defaultSpeed;
-    currentUtterance.pitch = settings.pitch;
-    const voice = getSelectedVoice();
-    if (voice) {
-      currentUtterance.voice = voice;
-      currentUtterance.lang = voice.lang;
-    }
-    attachUtteranceEvents(currentUtterance);
-    speechSynthesis.speak(currentUtterance);
-  }
+  // If paused, don't restart — resumeTTS() reads settings.selectedVoiceName so the
+  // new voice will be picked up automatically when the user clicks play.
+  if (!currentText || isTTSPaused) return;
+  if (speechSynthesis.speaking) resumeTTS();
 }

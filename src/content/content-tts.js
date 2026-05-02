@@ -61,11 +61,37 @@ function stopTTS(hidePillAfter = true) {
   currentText = "";
   currentCharIndex = 0;
   currentCharOffset = 0;
+  isTTSPaused = false;
   if (hidePillAfter) {
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
     hidePill();
   }
+}
+
+function resumeTTS() {
+  if (!currentText) return;
+  const resumeOffset = currentCharIndex;
+  if (currentUtterance) {
+    currentUtterance.onboundary = null;
+    currentUtterance.onstart = null;
+    currentUtterance.onend = null;
+    currentUtterance.onerror = null;
+    currentUtterance.onpause = null;
+    currentUtterance.onresume = null;
+  }
+  speechSynthesis.cancel();
+  currentCharOffset = resumeOffset;
+  currentUtterance = new SpeechSynthesisUtterance(currentText.slice(resumeOffset));
+  currentUtterance.rate = settings.defaultSpeed;
+  currentUtterance.pitch = settings.pitch;
+  const voice = getSelectedVoice();
+  if (voice) {
+    currentUtterance.voice = voice;
+    currentUtterance.lang = voice.lang;
+  }
+  attachUtteranceEvents(currentUtterance);
+  speechSynthesis.speak(currentUtterance);
 }
 
 function attachUtteranceEvents(utt) {
@@ -85,10 +111,12 @@ function attachUtteranceEvents(utt) {
     });
   };
   utt.onpause = () => {
+    isTTSPaused = true;
     setPillState("paused");
     notifyBackground({ type: "TTS_PAUSED" });
   };
   utt.onresume = () => {
+    isTTSPaused = false;
     setPillState("playing");
     notifyBackground({ type: "TTS_RESUMED" });
   };

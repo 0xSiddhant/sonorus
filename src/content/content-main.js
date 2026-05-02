@@ -3,8 +3,9 @@
 
 function onMessage(message) {
   if (message.type === "CMD_PAUSE") {
-    if (speechSynthesis.speaking && !speechSynthesis.paused) {
+    if (speechSynthesis.speaking && !isTTSPaused) {
       speechSynthesis.pause();
+      isTTSPaused = true;
       setPillState("paused");
       notifyBackground({ type: "TTS_PAUSED" });
     }

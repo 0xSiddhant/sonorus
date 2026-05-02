@@ -27,6 +27,7 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 let currentText = "";
 let pillHideTimer = null;
+let isTTSPaused = false; // tracks pause state ourselves — speechSynthesis.paused is unreliable in Chrome
 let currentCharIndex = 0;  // absolute char position in currentText
 let currentCharOffset = 0; // start offset of the current utterance within currentText
 
