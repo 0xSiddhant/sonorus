@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 1. Resolve current version from latest git tag ───────────────────────
+      - name: Get current version
+        id: current
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$TAG" ]; then
+            echo "version=1.0.0" >> $GITHUB_OUTPUT
+            echo "tag=" >> $GITHUB_OUTPUT
+          else
+            echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+          fi
+
+      # ── 2. Read commits since last tag, determine bump type ──────────────────
+      - name: Determine version bump
+        id: bump
+        run: |
+          TAG="${{ steps.current.outputs.tag }}"
+
+          if [ -z "$TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s%n%b" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s%n%b" "${TAG}..HEAD")
+          fi
+
+          echo "Commits analyzed:"
+          echo "$COMMITS"
+
+          BUMP="patch"
+
+          # Major: breaking change marker (type!: ...) or BREAKING CHANGE in body
+          if echo "$COMMITS" | grep -qE "(^[a-z]+(\([^)]*\))?!:| BREAKING CHANGE)"; then
+            BUMP="major"
+          # Minor: new feature
+          elif echo "$COMMITS" | grep -qE "^feat(\([^)]*\))?:"; then
+            BUMP="minor"
+          fi
+
+          echo "Bump type: $BUMP"
+          echo "type=$BUMP" >> $GITHUB_OUTPUT
+
+      # ── 3. Calculate new version ─────────────────────────────────────────────
+      - name: Calculate new version
+        id: version
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+          BUMP="${{ steps.bump.outputs.type }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "$BUMP" in
+            major) NEW="$((MAJOR + 1)).0.0" ;;
+            minor) NEW="${MAJOR}.$((MINOR + 1)).0" ;;
+            patch) NEW="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+          esac
+
+          echo "Version bump: $CURRENT → $NEW ($BUMP)"
+          echo "new=$NEW" >> $GITHUB_OUTPUT
+
+      # ── 4. Stamp new version into manifest.json and settings.html ────────────
+      - name: Update version in source files
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+
+          # manifest.json — source of truth for build.js
+          jq --arg v "$NEW" '.version = $v' src/manifest.json > /tmp/manifest.json
+          mv /tmp/manifest.json src/manifest.json
+
+          # settings.html — version badge shown in the UI
+          sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${NEW}/g" src/settings/settings.html
+
+      # ── 5. Build the zip ──────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build extension
+        run: npm run build
+
+      # ── 6. Create and push git tag ────────────────────────────────────────────
+      - name: Create git tag
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${NEW}"
+          git push origin "v${NEW}"
+
+      # ── 7. Create GitHub release and attach zip ───────────────────────────────
+      - name: Create release
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+          gh release create "v${NEW}" \
+            "sonorus-v${NEW}.zip" \
+            --title "Sonorus v${NEW}" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

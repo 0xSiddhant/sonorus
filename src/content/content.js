@@ -39,10 +39,8 @@ async function init() {
   document.addEventListener('mouseup', onMouseUp)
   document.addEventListener('mousedown', onDocMouseDown)
 
-  // Listen for commands from background/popup
   chrome.runtime.onMessage.addListener(onMessage)
 
-  // Re-apply settings when changed from settings page
   chrome.storage.onChanged.addListener((changes) => {
     for (const [key, { newValue }] of Object.entries(changes)) {
       settings[key] = newValue
@@ -54,6 +52,12 @@ function loadVoices() {
   voices = speechSynthesis.getVoices()
 }
 
+function notifyBackground(msg) {
+  try {
+    chrome.runtime.sendMessage(msg, () => void chrome.runtime.lastError)
+  } catch (_) {}
+}
+
 // ─── Message handler ──────────────────────────────────────────────────────────
 
 function onMessage(message) {
@@ -61,7 +65,7 @@ function onMessage(message) {
     if (speechSynthesis.speaking && !speechSynthesis.paused) {
       speechSynthesis.pause()
       setPillState('paused')
-      chrome.runtime.sendMessage({ type: 'TTS_PAUSED' })
+      notifyBackground({ type: 'TTS_PAUSED' })
     }
   } else if (message.type === 'CMD_STOP') {
     stopTTS()
@@ -71,7 +75,6 @@ function onMessage(message) {
 // ─── Selection detection ──────────────────────────────────────────────────────
 
 function onMouseUp(e) {
-  // Don't trigger on clicks inside our own UI
   if (pillEl?.contains(e.target) || popupIconEl?.contains(e.target)) return
 
   setTimeout(() => {
@@ -158,7 +161,7 @@ function startTTS(text) {
 
   currentUtterance.onstart = () => {
     setPillState('playing')
-    chrome.runtime.sendMessage({
+    notifyBackground({
       type: 'TTS_STARTED',
       text: text.slice(0, 100),
       speed: settings.defaultSpeed,
@@ -168,24 +171,24 @@ function startTTS(text) {
 
   currentUtterance.onpause = () => {
     setPillState('paused')
-    chrome.runtime.sendMessage({ type: 'TTS_PAUSED' })
+    notifyBackground({ type: 'TTS_PAUSED' })
   }
 
   currentUtterance.onresume = () => {
     setPillState('playing')
-    chrome.runtime.sendMessage({ type: 'TTS_RESUMED' })
+    notifyBackground({ type: 'TTS_RESUMED' })
   }
 
   currentUtterance.onend = () => {
     setPillState('idle')
-    chrome.runtime.sendMessage({ type: 'TTS_STOPPED' })
+    notifyBackground({ type: 'TTS_STOPPED' })
     setTimeout(() => hidePill(), 1500)
   }
 
   currentUtterance.onerror = (e) => {
     if (e.error === 'interrupted' || e.error === 'canceled') return
     setPillState('error')
-    chrome.runtime.sendMessage({ type: 'TTS_STOPPED' })
+    notifyBackground({ type: 'TTS_STOPPED' })
   }
 
   speechSynthesis.speak(currentUtterance)
@@ -197,7 +200,7 @@ function stopTTS(hidePillAfter = true) {
   currentText = ''
   if (hidePillAfter) {
     setPillState('idle')
-    chrome.runtime.sendMessage({ type: 'TTS_STOPPED' })
+    notifyBackground({ type: 'TTS_STOPPED' })
     hidePill()
   }
 }
@@ -212,7 +215,6 @@ function buildVoiceOptions() {
     grouped[lang].push(v)
   })
 
-  // Priority order: en-IN, hi-IN first, then rest
   const priorityLangs = ['en', 'hi']
   const allLangs = [
     ...priorityLangs.filter(l => grouped[l]),
@@ -254,7 +256,6 @@ function showPill() {
     <button id="sonorus-close" title="Close">✕</button>
   `
 
-  // Position
   const savedPos = sessionStorage.getItem('sonorus-pill-pos')
   if (savedPos) {
     const { left, top } = JSON.parse(savedPos)
@@ -269,14 +270,12 @@ function showPill() {
   document.body.appendChild(pillEl)
   requestAnimationFrame(() => pillEl?.classList.add('sonorus-visible'))
 
-  // Controls
   document.getElementById('sonorus-playpause').addEventListener('click', onPlayPause)
   document.getElementById('sonorus-stop').addEventListener('click', () => stopTTS())
   document.getElementById('sonorus-close').addEventListener('click', () => stopTTS())
   document.getElementById('sonorus-speed').addEventListener('input', onSpeedChange)
   document.getElementById('sonorus-voice').addEventListener('change', onVoiceChange)
 
-  // Drag
   document.getElementById('sonorus-drag').addEventListener('mousedown', onDragStart)
 }
 
@@ -316,8 +315,6 @@ function setPillState(state) {
   } else if (state === 'paused' || state === 'loading') {
     btn.textContent = '▶'
     btn.title = 'Play'
-  } else if (state === 'error') {
-    btn.textContent = '▶'
   } else {
     btn.textContent = '▶'
   }
@@ -376,11 +373,11 @@ function onVoiceChange(e) {
 }
 
 function attachUtteranceEvents(utt) {
-  utt.onstart = () => { setPillState('playing'); chrome.runtime.sendMessage({ type: 'TTS_STARTED', text: currentText.slice(0, 100), speed: settings.defaultSpeed, voice: settings.selectedVoiceName }) }
-  utt.onpause = () => { setPillState('paused'); chrome.runtime.sendMessage({ type: 'TTS_PAUSED' }) }
-  utt.onresume = () => { setPillState('playing'); chrome.runtime.sendMessage({ type: 'TTS_RESUMED' }) }
-  utt.onend = () => { setPillState('idle'); chrome.runtime.sendMessage({ type: 'TTS_STOPPED' }); setTimeout(() => hidePill(), 1500) }
-  utt.onerror = (e) => { if (e.error === 'interrupted' || e.error === 'canceled') return; setPillState('error'); chrome.runtime.sendMessage({ type: 'TTS_STOPPED' }) }
+  utt.onstart = () => { setPillState('playing'); notifyBackground({ type: 'TTS_STARTED', text: currentText.slice(0, 100), speed: settings.defaultSpeed, voice: settings.selectedVoiceName }) }
+  utt.onpause = () => { setPillState('paused'); notifyBackground({ type: 'TTS_PAUSED' }) }
+  utt.onresume = () => { setPillState('playing'); notifyBackground({ type: 'TTS_RESUMED' }) }
+  utt.onend = () => { setPillState('idle'); notifyBackground({ type: 'TTS_STOPPED' }); setTimeout(() => hidePill(), 1500) }
+  utt.onerror = (e) => { if (e.error === 'interrupted' || e.error === 'canceled') return; setPillState('error'); notifyBackground({ type: 'TTS_STOPPED' }) }
 }
 
 // ─── Drag ─────────────────────────────────────────────────────────────────────
