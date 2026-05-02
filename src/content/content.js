@@ -23,6 +23,7 @@ let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 let currentText = "";
+let pillHideTimer = null;
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
@@ -147,6 +148,10 @@ function getSelectedVoice() {
 }
 
 function startTTS(text) {
+  if (pillHideTimer) {
+    clearTimeout(pillHideTimer);
+    pillHideTimer = null;
+  }
   stopTTS(false);
   currentText = text;
 
@@ -186,7 +191,10 @@ function startTTS(text) {
   currentUtterance.onend = () => {
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
-    setTimeout(() => hidePill(), 1500);
+    pillHideTimer = setTimeout(() => {
+      pillHideTimer = null;
+      hidePill();
+    }, 1500);
   };
 
   currentUtterance.onerror = (e) => {
@@ -199,6 +207,17 @@ function startTTS(text) {
 }
 
 function stopTTS(hidePillAfter = true) {
+  if (pillHideTimer) {
+    clearTimeout(pillHideTimer);
+    pillHideTimer = null;
+  }
+  if (currentUtterance) {
+    currentUtterance.onstart = null;
+    currentUtterance.onend = null;
+    currentUtterance.onerror = null;
+    currentUtterance.onpause = null;
+    currentUtterance.onresume = null;
+  }
   speechSynthesis.cancel();
   currentUtterance = null;
   currentText = "";
@@ -317,10 +336,15 @@ function applyDefaultPillPosition() {
 }
 
 function hidePill() {
-  if (pillEl) {
-    pillEl.remove();
-    pillEl = null;
-    showPopupIconIfNeeded();
+  if (!pillEl) return;
+  pillEl.remove();
+  pillEl = null;
+  if (settings.showPopupIcon) {
+    const sel = window.getSelection();
+    const text = sel?.toString().trim();
+    if (text && text.length >= settings.minChars) {
+      showPopupIcon(sel, text);
+    }
   }
 }
 
@@ -366,6 +390,11 @@ function onSpeedChange(e) {
 
   if (currentUtterance && currentText) {
     const wasPaused = speechSynthesis.paused;
+    currentUtterance.onstart = null;
+    currentUtterance.onend = null;
+    currentUtterance.onerror = null;
+    currentUtterance.onpause = null;
+    currentUtterance.onresume = null;
     speechSynthesis.cancel();
     currentUtterance = new SpeechSynthesisUtterance(currentText);
     currentUtterance.rate = rate;
@@ -386,6 +415,11 @@ function onVoiceChange(e) {
   chrome.storage.sync.set({ selectedVoiceName: e.target.value });
 
   if (currentText && speechSynthesis.speaking) {
+    currentUtterance.onstart = null;
+    currentUtterance.onend = null;
+    currentUtterance.onerror = null;
+    currentUtterance.onpause = null;
+    currentUtterance.onresume = null;
     speechSynthesis.cancel();
     currentUtterance = new SpeechSynthesisUtterance(currentText);
     currentUtterance.rate = settings.defaultSpeed;
@@ -421,7 +455,10 @@ function attachUtteranceEvents(utt) {
   utt.onend = () => {
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
-    setTimeout(() => hidePill(), 1500);
+    pillHideTimer = setTimeout(() => {
+      pillHideTimer = null;
+      hidePill();
+    }, 1500);
   };
   utt.onerror = (e) => {
     if (e.error === "interrupted" || e.error === "canceled") return;
