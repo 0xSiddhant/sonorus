@@ -23,6 +23,8 @@ let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 let currentText = "";
+let currentCharIndex = 0;
+let currentUtteranceOffset = 0;
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
@@ -149,6 +151,8 @@ function getSelectedVoice() {
 function startTTS(text) {
   stopTTS(false);
   currentText = text;
+  currentCharIndex = 0;
+  currentUtteranceOffset = 0;
 
   showPill();
   setPillState("loading");
@@ -162,6 +166,11 @@ function startTTS(text) {
     currentUtterance.voice = voice;
     currentUtterance.lang = voice.lang;
   }
+
+  currentUtterance.onboundary = (e) => {
+    currentCharIndex = currentUtteranceOffset + e.charIndex;
+    updateProgressBar();
+  };
 
   currentUtterance.onstart = () => {
     setPillState("playing");
@@ -184,6 +193,8 @@ function startTTS(text) {
   };
 
   currentUtterance.onend = () => {
+    currentCharIndex = currentText.length;
+    updateProgressBar();
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
     setTimeout(() => hidePill(), 1500);
@@ -202,6 +213,8 @@ function stopTTS(hidePillAfter = true) {
   speechSynthesis.cancel();
   currentUtterance = null;
   currentText = "";
+  currentCharIndex = 0;
+  currentUtteranceOffset = 0;
   if (hidePillAfter) {
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
@@ -261,6 +274,7 @@ function showPill() {
     </div>
     <select id="sonorus-voice" title="Voice">${buildVoiceOptions()}</select>
     <button id="sonorus-close" title="Close">✕</button>
+    <div id="sonorus-progress-bar"><div id="sonorus-progress-fill"></div></div>
   `;
 
   const savedPos = sessionStorage.getItem("sonorus-pill-pos");
@@ -358,26 +372,42 @@ function onPlayPause() {
   }
 }
 
+function updateProgressBar() {
+  const fill = document.getElementById("sonorus-progress-fill");
+  if (!fill || !currentText.length) return;
+  fill.style.width = `${(currentCharIndex / currentText.length) * 100}%`;
+}
+
+function restartFromCurrentPosition(rate, voiceOverride) {
+  const resumeFrom = currentCharIndex;
+  const resumeText = currentText.slice(resumeFrom);
+  if (!resumeText) return;
+
+  const wasPaused = speechSynthesis.paused;
+  speechSynthesis.cancel();
+
+  currentUtteranceOffset = resumeFrom;
+  currentUtterance = new SpeechSynthesisUtterance(resumeText);
+  currentUtterance.rate = rate ?? settings.defaultSpeed;
+  currentUtterance.pitch = settings.pitch;
+  const voice = voiceOverride ?? getSelectedVoice();
+  if (voice) {
+    currentUtterance.voice = voice;
+    currentUtterance.lang = voice.lang;
+  }
+  attachUtteranceEvents(currentUtterance);
+  speechSynthesis.speak(currentUtterance);
+  if (wasPaused) speechSynthesis.pause();
+}
+
 function onSpeedChange(e) {
   const rate = parseFloat(e.target.value);
   settings.defaultSpeed = rate;
   const label = document.getElementById("sonorus-speed-val");
   if (label) label.textContent = `${rate}x`;
 
-  if (currentUtterance && currentText) {
-    const wasPaused = speechSynthesis.paused;
-    speechSynthesis.cancel();
-    currentUtterance = new SpeechSynthesisUtterance(currentText);
-    currentUtterance.rate = rate;
-    currentUtterance.pitch = settings.pitch;
-    const voice = getSelectedVoice();
-    if (voice) {
-      currentUtterance.voice = voice;
-      currentUtterance.lang = voice.lang;
-    }
-    attachUtteranceEvents(currentUtterance);
-    speechSynthesis.speak(currentUtterance);
-    if (wasPaused) speechSynthesis.pause();
+  if (currentText && (speechSynthesis.speaking || speechSynthesis.paused)) {
+    restartFromCurrentPosition(rate, null);
   }
 }
 
@@ -385,22 +415,16 @@ function onVoiceChange(e) {
   settings.selectedVoiceName = e.target.value;
   chrome.storage.sync.set({ selectedVoiceName: e.target.value });
 
-  if (currentText && speechSynthesis.speaking) {
-    speechSynthesis.cancel();
-    currentUtterance = new SpeechSynthesisUtterance(currentText);
-    currentUtterance.rate = settings.defaultSpeed;
-    currentUtterance.pitch = settings.pitch;
-    const voice = getSelectedVoice();
-    if (voice) {
-      currentUtterance.voice = voice;
-      currentUtterance.lang = voice.lang;
-    }
-    attachUtteranceEvents(currentUtterance);
-    speechSynthesis.speak(currentUtterance);
+  if (currentText && (speechSynthesis.speaking || speechSynthesis.paused)) {
+    restartFromCurrentPosition(null, getSelectedVoice());
   }
 }
 
 function attachUtteranceEvents(utt) {
+  utt.onboundary = (e) => {
+    currentCharIndex = currentUtteranceOffset + e.charIndex;
+    updateProgressBar();
+  };
   utt.onstart = () => {
     setPillState("playing");
     notifyBackground({
@@ -419,6 +443,8 @@ function attachUtteranceEvents(utt) {
     notifyBackground({ type: "TTS_RESUMED" });
   };
   utt.onend = () => {
+    currentCharIndex = currentText.length;
+    updateProgressBar();
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
     setTimeout(() => hidePill(), 1500);
