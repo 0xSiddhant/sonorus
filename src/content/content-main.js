@@ -26,6 +26,7 @@ async function init() {
 
   document.addEventListener("mouseup", onMouseUp);
   document.addEventListener("mousedown", onDocMouseDown);
+  window.addEventListener("pagehide", () => stopTTS());
 
   chrome.runtime.onMessage.addListener(onMessage);
 
