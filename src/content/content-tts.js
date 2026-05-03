@@ -71,7 +71,12 @@ function stopTTS(hidePillAfter = true) {
 
 function resumeTTS() {
   if (!currentText) return;
-  const resumeOffset = currentCharIndex;
+  // Snap back to the start of the word at currentCharIndex.
+  // onboundary already fires at word starts, but this guards against mid-word positions from Chrome quirks.
+  let resumeOffset = currentCharIndex;
+  while (resumeOffset > 0 && /\S/.test(currentText[resumeOffset - 1])) {
+    resumeOffset--;
+  }
   if (currentUtterance) {
     currentUtterance.onboundary = null;
     currentUtterance.onstart = null;
@@ -81,8 +86,15 @@ function resumeTTS() {
     currentUtterance.onresume = null;
   }
   speechSynthesis.cancel();
+  // Chrome bug: pause() leaves speechSynthesis.paused=true even after cancel(),
+  // so the next speak() queues but never fires. resume() force-clears that flag.
+  speechSynthesis.resume();
+
   currentCharOffset = resumeOffset;
-  currentUtterance = new SpeechSynthesisUtterance(currentText.slice(resumeOffset));
+  currentCharIndex = resumeOffset;
+  currentUtterance = new SpeechSynthesisUtterance(
+    currentText.slice(resumeOffset),
+  );
   currentUtterance.rate = settings.defaultSpeed;
   currentUtterance.pitch = settings.pitch;
   const voice = getSelectedVoice();
@@ -91,7 +103,11 @@ function resumeTTS() {
     currentUtterance.lang = voice.lang;
   }
   attachUtteranceEvents(currentUtterance);
-  speechSynthesis.speak(currentUtterance);
+  // Chrome drops speak() called synchronously after cancel(); defer to next tick.
+  const utt = currentUtterance;
+  setTimeout(() => {
+    if (currentUtterance === utt) speechSynthesis.speak(utt);
+  }, 0);
 }
 
 function attachUtteranceEvents(utt) {
@@ -123,6 +139,7 @@ function attachUtteranceEvents(utt) {
   utt.onend = () => {
     currentCharIndex = 0;
     currentCharOffset = 0;
+    isTTSPaused = false;
     updateProgressBar();
     setPillState("idle");
     notifyBackground({ type: "TTS_STOPPED" });
@@ -133,6 +150,7 @@ function attachUtteranceEvents(utt) {
   };
   utt.onerror = (e) => {
     if (e.error === "interrupted" || e.error === "canceled") return;
+    isTTSPaused = false;
     setPillState("error");
     notifyBackground({ type: "TTS_STOPPED" });
   };

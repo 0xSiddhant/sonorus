@@ -56,10 +56,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true
 })
 
-// Cancel TTS when the active tab changes
-chrome.tabs.onActivated.addListener(({ tabId }) => {
-  if (ttsState.tabId !== null && ttsState.tabId !== tabId && ttsState.status !== 'idle') {
-    chrome.tabs.sendMessage(ttsState.tabId, { type: 'CMD_STOP' })
+// Stop TTS when the TTS tab navigates to a new URL (same-tab navigation).
+// Tab switches are intentionally ignored so TTS keeps playing in background tabs.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'loading' && tabId === ttsState.tabId && ttsState.status !== 'idle') {
     ttsState = { status: 'idle', text: '', speed: 1.0, voice: '', tabId: null }
+    chrome.tabs.sendMessage(tabId, { type: 'CMD_STOP' }, () => void chrome.runtime.lastError)
   }
 })
