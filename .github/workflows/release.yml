@@ -88,7 +88,17 @@ jobs:
           # settings.html — version badge shown in the UI
           sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${NEW}/g" src/settings/settings.html
 
-      # ── 5. Build the zip ──────────────────────────────────────────────────────
+      # ── 5. Commit version bump back to main ──────────────────────────────────
+      - name: Commit version bump
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/manifest.json src/settings/settings.html
+          git commit -m "chore: bump version to v${NEW}"
+          git push origin main
+
+      # ── 6. Build the zip ──────────────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -100,16 +110,14 @@ jobs:
       - name: Build extension
         run: npm run build
 
-      # ── 6. Create and push git tag ────────────────────────────────────────────
+      # ── 7. Create and push git tag ────────────────────────────────────────────
       - name: Create git tag
         run: |
           NEW="${{ steps.version.outputs.new }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "v${NEW}"
           git push origin "v${NEW}"
 
-      # ── 7. Create GitHub release and attach zip ───────────────────────────────
+      # ── 8. Create GitHub release and attach zip ───────────────────────────────
       - name: Create release
         run: |
           NEW="${{ steps.version.outputs.new }}"
