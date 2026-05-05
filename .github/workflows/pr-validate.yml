@@ -51,3 +51,18 @@ jobs:
       - run: npm install --no-save @commitlint/cli@latest @commitlint/config-conventional@latest
 
       - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+  # ── Check 3: Build output — dual manifest integrity ───────────────────────
+  validate-build:
+    name: Build output (dual manifest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - run: npm install
+
+      - run: npm run validate

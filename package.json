@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node scripts/build.js",
     "package": "npm run build",
-    "dev:firefox": "node scripts/dev-firefox.js"
+    "dev:firefox": "node scripts/dev-firefox.js",
+    "validate": "node scripts/validate.js"
   },
   "devDependencies": {
     "archiver": "^6.0.0"
