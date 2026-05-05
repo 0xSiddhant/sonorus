@@ -35,19 +35,17 @@ jobs:
             - not end with a period
             Example: "feat: add speed control to pill player"
 
-  # ── Check 2: Every individual commit message follows the same rules ───────────
-  validate-commits:
-    name: Commit messages (commitlint)
+  # ── Check 2: Build output — dual manifest integrity ──────────────────────
+  validate-build:
+    name: Build output (dual manifest)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      - run: npm install --no-save @commitlint/cli@latest @commitlint/config-conventional@latest
+      - run: npm install
 
-      - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+      - run: npm run validate
