@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sonorus",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Select any text and listen to it via a floating player. Inspired by the HP spell Sonorus.",
   "permissions": [
     "storage",
