@@ -76,7 +76,7 @@ jobs:
           echo "Version bump: $CURRENT → $NEW ($BUMP)"
           echo "new=$NEW" >> $GITHUB_OUTPUT
 
-      # ── 4. Stamp new version into manifest.json and settings.html ────────────
+      # ── 4. Stamp new version into manifests and settings.html ───────────────
       - name: Update version in source files
         run: |
           NEW="${{ steps.version.outputs.new }}"
@@ -84,6 +84,10 @@ jobs:
           # manifest.json — source of truth for build.js
           jq --arg v "$NEW" '.version = $v' src/manifest.json > /tmp/manifest.json
           mv /tmp/manifest.json src/manifest.json
+
+          # manifest.firefox.json — keep in sync
+          jq --arg v "$NEW" '.version = $v' src/manifest.firefox.json > /tmp/manifest.firefox.json
+          mv /tmp/manifest.firefox.json src/manifest.firefox.json
 
           # settings.html — version badge shown in the UI
           sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v${NEW}/g" src/settings/settings.html
@@ -94,8 +98,8 @@ jobs:
           NEW="${{ steps.version.outputs.new }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/manifest.json src/settings/settings.html
-          git commit -m "chore: bump version to v${NEW}"
+          git add src/manifest.json src/manifest.firefox.json src/settings/settings.html
+          git commit -m "chore: sync version to v${NEW} and commit version bumps in release workflow"
           git push origin main
 
       # ── 6. Build the zip ──────────────────────────────────────────────────────
@@ -117,12 +121,13 @@ jobs:
           git tag "v${NEW}"
           git push origin "v${NEW}"
 
-      # ── 8. Create GitHub release and attach zip ───────────────────────────────
+      # ── 8. Create GitHub release and attach zips ─────────────────────────────
       - name: Create release
         run: |
           NEW="${{ steps.version.outputs.new }}"
           gh release create "v${NEW}" \
-            "sonorus-v${NEW}.zip" \
+            "sonorus-chrome-v${NEW}.zip" \
+            "sonorus-firefox-v${NEW}.zip" \
             --title "Sonorus v${NEW}" \
             --generate-notes
         env:

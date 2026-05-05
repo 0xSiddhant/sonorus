@@ -2,5 +2,6 @@
 *.zip
 node_modules/
 dist/
+dev-firefox/
 .env
 .claude/
