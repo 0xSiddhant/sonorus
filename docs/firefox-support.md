@@ -75,8 +75,29 @@ For a permanent install (survives restarts), the extension must be signed by Moz
 
 ---
 
-## Loading the built zip on Firefox
+## Testing the release zip locally
 
 1. Run `npm install && npm run build`
 2. Go to `about:debugging` → **This Firefox** → **Load Temporary Add-on**
 3. Select `sonorus-firefox-v{version}.zip`
+
+Run `npm run validate` instead of `npm run build` to also verify both zips are correct after building — checks manifest keys, version sync, and that no source-only files leaked into either package.
+
+---
+
+## Publishing to addons.mozilla.org (AMO)
+
+1. Run `npm run validate` to build and verify the zip is clean
+2. Go to [addons.mozilla.org/developers](https://addons.mozilla.org/developers/) and sign in (or create an account)
+3. Click **Submit a New Add-on** → choose **On this site** (listed on AMO) or **On your own** (self-distributed)
+4. Upload `sonorus-firefox-v{version}.zip`
+5. AMO will auto-validate the manifest — fix any reported errors before continuing
+6. Fill in the listing details:
+   - Name, summary, description
+   - Screenshots (at least one required for public listing)
+   - Category: **Productivity** or **Accessibility**
+   - Privacy policy: not required — Sonorus collects zero user data; state this explicitly in the description
+7. Submit for review — AMO review is manual and typically takes a few days to a few weeks for a new submission
+8. Once approved, AMO signs the XPI and publishes it; users can install permanently (survives browser restarts) without needing developer mode
+
+> **Note:** The `browser_specific_settings.gecko.id` in `manifest.firefox.json` (`sonorus@0xSiddhant`) must be unique on AMO. If that ID is already taken, update it in `src/manifest.firefox.json` before submitting.

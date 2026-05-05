@@ -5,7 +5,7 @@
   "description": "Select any text and listen to it via a floating player. Inspired by the HP spell Sonorus.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "sonorus@contactsiddhant2155",
+      "id": "sonorus@0xSiddhant",
       "strict_min_version": "109.0"
     }
   },
