@@ -10,7 +10,7 @@
 
 ## Implementing a Plan — Mandatory Workflow
 
-Before writing any code from a plan in `.agents/plans/`:
+Before writing any code from an agreed plan:
 
 1. **Create a feature branch** from `develop`:
    ```bash
@@ -59,12 +59,14 @@ style: update pill dark theme border color
 chore: update build script for new src structure
 ```
 
-### Rules (commitlint)
+### Rules
 
 - Subject line: lowercase, no period at end
 - Max 72 characters total
 - Use imperative mood ("add", "fix", "move" — not "added", "fixes", "moved")
 - One logical change per commit — keep commits focused
+
+> These are conventions, not enforced checks. CI lints the **PR title** only — the commitlint job was removed, so individual commit messages are no longer validated. `commitlint.config.js` remains in the repo but nothing reads it.
 
 ---
 

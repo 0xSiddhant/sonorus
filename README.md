@@ -21,7 +21,7 @@ A browser extension that lets you select any text on any webpage and instantly l
 | Edge | ✅ | Chromium-based, loads Chrome build |
 | Opera | ✅ | Chromium-based, loads Chrome build |
 | Brave | ✅ | Chromium-based, loads Chrome build |
-| Safari | 🔜 Coming Soon | Requires Safari Web Extension rewrite |
+| Safari | ✅ | 26+ via temporary extension, or Xcode app wrapper |
 
 ## Features
 
@@ -31,6 +31,18 @@ A browser extension that lets you select any text on any webpage and instantly l
 - Speed control (0.5x – 2x)
 - Per-site blocking
 - No account · Fully offline · Free
+
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshot-1.png" alt="Select any text to listen instantly" width="49%">
+  <img src="assets/screenshot-2.png" alt="Floating pill player with pause, stop, speed and voice controls" width="49%">
+</p>
+<p align="center">
+  <img src="assets/screenshot-3.png" alt="Full settings page — blocked sites, voice picker, playback speed, appearance" width="49%">
+</p>
+
+> These are design mockups rendered by [`scripts/generate-store-assets.py`](scripts/generate-store-assets.py), not live captures. They reuse the real palette and control layout from `src/`.
 
 ## Install
 
@@ -43,6 +55,14 @@ A browser extension that lets you select any text on any webpage and instantly l
 1. Clone this repo
 2. Run `npm install && npm run dev:firefox` — stages `dev-firefox/` with the correct manifest
 3. Go to `about:debugging` → **This Firefox** → **Load Temporary Add-on** → select the `dev-firefox/` folder
+
+**Safari** (macOS, Safari 26+ — no Xcode needed)
+1. Clone this repo
+2. Run `npm install && npm run build` — produces `dist/chrome/`
+3. Safari → **Settings** → **Developer** → **Add Temporary Extension…** → select the `dist/chrome/` folder
+4. **Settings** → **Extensions** → enable **Sonorus**, then click the toolbar icon → **Allow on Every Website**
+
+> Safari unloads temporary extensions on quit. For a build that persists, run `npm run dev:safari` to generate an Xcode app wrapper — see [docs/safari-support.md](docs/safari-support.md) for that path, plus known limitations.
 
 ## Usage
 
@@ -59,7 +79,9 @@ npm run build
 # → sonorus-firefox-v{version}.zip (addons.mozilla.org)
 ```
 
-Run `npm run validate` to build both targets and verify the output — checks manifest keys, version sync, and zip integrity. This also runs automatically on every PR.
+Run `npm run validate` to build both targets and verify the output — checks manifest keys, version sync, and zip integrity. This also runs automatically on every PR. Note that it deletes `dist/` and both zips when it finishes, so use `npm run build` when you actually want the artifacts.
+
+See [docs/commands.md](docs/commands.md) for every available command, what each one produces, and which folder to load into each browser.
 
 ## License
 

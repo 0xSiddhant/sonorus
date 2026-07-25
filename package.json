@@ -6,6 +6,7 @@
     "build": "node scripts/build.js",
     "package": "npm run build",
     "dev:firefox": "node scripts/dev-firefox.js",
+    "dev:safari": "bash scripts/safari.sh --force",
     "validate": "node scripts/validate.js"
   },
   "devDependencies": {
