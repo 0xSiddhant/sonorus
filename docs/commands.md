@@ -65,6 +65,30 @@ scripts/safari.sh --force --build --bundle-id com.yourname.Sonorus
 
 ---
 
+## `scripts/generate-store-assets.py`
+
+Renders the Chrome Web Store listing images into `assets/`. Standalone — it is **not** wired into `npm run build` and nothing in CI calls it, because the output is committed and only needs regenerating when the design changes.
+
+```bash
+pip install Pillow                            # not a repo dependency
+python3 scripts/generate-store-assets.py
+```
+
+| Output | Size | Purpose |
+|---|---|---|
+| `assets/screenshot-1.png` | 1280×800 | Text selected, floating 🔊 icon |
+| `assets/screenshot-2.png` | 1280×800 | Pill player with all controls |
+| `assets/screenshot-3.png` | 1280×800 | Settings page |
+| `assets/promo-tile.png` | 440×280 | Store promo tile |
+
+All four are written as 24-bit RGB with no alpha channel, which is what the Chrome Web Store requires. The script takes no arguments and overwrites its output every run.
+
+> **These are drawn mockups, not screen captures.** They reuse the real palette and control order from `src/content/content.css` and `src/settings/settings.html`, so they depict genuine functionality — but the Chrome Web Store expects listing images to show the actual product, and drawn mockups are a known rejection risk. Capture real screenshots before submitting. The promo tile is a marketing graphic and is fine to ship as-is.
+
+Pillow is deliberately not added to `package.json` — this is a Node project and the generator is the only Python in the repo. Use a venv if you would rather not install it globally.
+
+---
+
 ## Loading into each browser
 
 These are not shell commands — they are what you point each browser at after building.
@@ -101,5 +125,6 @@ There is no Safari step in CI. An unsigned `.app` is useless to end users, so au
 | `sonorus-firefox-v{version}.zip` | `build` | addons.mozilla.org upload |
 | `dev-firefox/` | `dev:firefox` | Staged folder for Firefox temporary add-on loading |
 | `safari/` | `dev:safari` | Generated Xcode project (macOS app wrapper) |
+| `assets/*.png` | `generate-store-assets.py` | Store listing screenshots + promo tile (**committed**, unlike the rest) |
 
 There is no Safari zip — Apple's pipeline accepts a signed app archive, not a zip of extension files, and the Safari resources are byte-identical to `dist/chrome` anyway.
