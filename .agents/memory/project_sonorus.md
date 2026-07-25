@@ -1,11 +1,15 @@
 ---
 name: Sonorus Extension Implementation
-description: Browser TTS extension — Chrome + Firefox supported, key decisions and store-prep details
+description: Browser TTS extension — Chrome + Firefox + Safari supported, key decisions and store-prep details
 type: project
 ---
 All 5 phases implemented on 2026-05-02. Load unpacked from `src/` in Chrome developer mode.
 
-**Browser support:** Chrome (MV3 service worker) and Firefox (MV3 event-page via `background.scripts`) as of 2026-05-06. No JS changes needed — Firefox supports `chrome.*` namespace. See `docs/firefox-support.md`.
+**Browser support:** Chrome (MV3 service worker) and Firefox (MV3 event-page via `background.scripts`) as of 2026-05-06; Safari 26+ added 2026-07-26. No JS changes needed for any of them — both Firefox and Safari support the `chrome.*` namespace. See `docs/firefox-support.md` and `docs/safari-support.md`.
+
+**Safari:** consumes the Chrome build verbatim — no third manifest. Development uses Safari 26's *Settings → Developer → Add Temporary Extension…* pointed at `dist/chrome/` (no Xcode). `scripts/safari.sh` generates an Xcode app wrapper, needed only for App Store distribution. Playback verified working on Safari 26.5 / macOS 26.5 on 2026-07-26.
+
+**All commands are documented in `docs/commands.md`** — npm scripts, `safari.sh` flags, per-browser load targets, and CI.
 
 **Key technical decision:** Uses `window.speechSynthesis` (Web Speech API) instead of `chrome.tts` permission — gives better voice variety and works directly in content scripts.
 
