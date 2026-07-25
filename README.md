@@ -32,6 +32,18 @@ A browser extension that lets you select any text on any webpage and instantly l
 - Per-site blocking
 - No account · Fully offline · Free
 
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshot-1.png" alt="Select any text to listen instantly" width="49%">
+  <img src="assets/screenshot-2.png" alt="Floating pill player with pause, stop, speed and voice controls" width="49%">
+</p>
+<p align="center">
+  <img src="assets/screenshot-3.png" alt="Full settings page — blocked sites, voice picker, playback speed, appearance" width="49%">
+</p>
+
+> These are design mockups rendered by [`scripts/generate-store-assets.py`](scripts/generate-store-assets.py), not live captures. They reuse the real palette and control layout from `src/`.
+
 ## Install
 
 **Chrome / Edge / Opera / Brave**
