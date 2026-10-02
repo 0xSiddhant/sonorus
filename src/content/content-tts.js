@@ -19,6 +19,9 @@ function startTTS(text) {
     pillHideTimer = null;
   }
   stopTTS(false);
+  // Chrome's speech queue is browser-wide: take it over so this tab doesn't
+  // wait behind an utterance still playing in another tab.
+  speechSynthesis.cancel();
   currentText = text;
   currentCharIndex = 0;
   currentCharOffset = 0;
@@ -55,8 +58,11 @@ function stopTTS(hidePillAfter = true) {
     currentUtterance.onerror = null;
     currentUtterance.onpause = null;
     currentUtterance.onresume = null;
+    // cancel() stops whatever is speaking from this origin in ANY tab, so only
+    // call it when this tab owns the utterance — otherwise a reload or Stop in
+    // an idle tab would kill playback in another tab.
+    speechSynthesis.cancel();
   }
-  speechSynthesis.cancel();
   currentUtterance = null;
   currentText = "";
   currentCharIndex = 0;
@@ -137,6 +143,7 @@ function attachUtteranceEvents(utt) {
     notifyBackground({ type: "TTS_RESUMED" });
   };
   utt.onend = () => {
+    currentUtterance = null; // finished — this tab no longer owns the speech queue
     currentCharIndex = 0;
     currentCharOffset = 0;
     isTTSPaused = false;
@@ -149,7 +156,15 @@ function attachUtteranceEvents(utt) {
     }, 1500);
   };
   utt.onerror = (e) => {
-    if (e.error === "interrupted" || e.error === "canceled") return;
+    if (e.error === "interrupted" || e.error === "canceled") {
+      // Our own cancel() calls null these handlers first, so reaching here means
+      // another tab cancelled or took over the shared speech queue. Reset the
+      // pill instead of leaving it stuck on "playing". Drop the utterance first
+      // so stopTTS() skips cancel() and doesn't kill the tab that took over.
+      currentUtterance = null;
+      stopTTS();
+      return;
+    }
     isTTSPaused = false;
     setPillState("error");
     notifyBackground({ type: "TTS_STOPPED" });

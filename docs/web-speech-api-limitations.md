@@ -44,6 +44,17 @@ Both properties can return stale values. Never use them to drive logic — use o
 
 ---
 
+## The speech queue is shared across tabs
+
+Chrome runs every page's `speechSynthesis` through one browser-wide `TtsController`. `speechSynthesis.cancel()` from **any tab** stops the current utterance if it came from the same origin (`TtsControllerImpl::StopCurrentUtteranceIfMatches`), and the tab that was speaking receives `onerror` with `"interrupted"`.
+
+Consequences in the codebase:
+- `stopTTS()` only calls `cancel()` when this tab owns `currentUtterance`. Otherwise the `pagehide` handler in an idle tab (e.g. reloading it) would silently kill playback in another tab.
+- Every self-initiated `cancel()` nulls the utterance handlers first, so an `"interrupted"`/`"canceled"` that reaches `onerror` means another tab took over — the pill resets instead of staying stuck on "playing".
+- `background.js` ignores `TTS_PAUSED` / `TTS_RESUMED` / `TTS_STOPPED` from any tab other than the one that sent the latest `TTS_STARTED`.
+
+---
+
 ## Volume control doesn't work on macOS
 
 `SpeechSynthesisUtterance.volume` is ignored by Chrome on macOS — the system audio level controls volume instead. This is why Sonorus has no volume slider. It was intentionally removed rather than showing a control that does nothing.
