@@ -99,6 +99,12 @@ To use `chrome.tts`, every TTS action (start, stop, pause, position tracking) wo
 
 ---
 
+## Where Sonorus does use chrome.tts
+
+Text read from **Chrome's PDF viewer** via the "Read aloud with Sonorus" context menu. The viewer runs no content script, so there is no page to call `speechSynthesis` from — `background.js` speaks it with `chrome.tts` and the toolbar popup acts as the controls. Everything else still uses `speechSynthesis`. The `tts` permission is only in the Chrome manifest; Firefox and Safari don't implement `chrome.tts`.
+
+---
+
 ## When you should use chrome.tts instead
 
 - You need **reliable pause/resume** without the cancel+restart gap (see `docs/web-speech-api-limitations.md`)

@@ -3,7 +3,11 @@
 
 function onMessage(message, _sender, sendResponse) {
   if (message.type === "CMD_SPEAK") {
-    // Text selected in a subframe; the background only sends this to the top frame.
+    // Text from a subframe or the context menu; the background only sends this to the top frame.
+    if (!isEnabledHere()) {
+      sendResponse({ ok: false, reason: "disabled" });
+      return;
+    }
     startTTS(message.text);
     sendResponse({ ok: true });
   } else if (message.type === "CMD_PAUSE") {

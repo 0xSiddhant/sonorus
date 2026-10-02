@@ -1,10 +1,9 @@
 /* content-popup-icon.js — Floating 🔊 icon shown near a text selection.
    Reads: (none). Writes: popupIconEl. Calls: playText. */
 
-function showPopupIcon(sel, text) {
+function showPopupIcon({ text, range }) {
   hidePopupIcon();
 
-  const range = sel.getRangeAt(0);
   const rect = range.getBoundingClientRect();
 
   popupIconEl = document.createElement("div");

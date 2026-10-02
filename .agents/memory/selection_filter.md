@@ -6,7 +6,7 @@ type: feature
 
 # Selection Filter
 
-`onMouseUp` in `src/content/content-selection.js` no longer calls `showPopupIconIfNeeded()` directly. It first runs `isSelectionSpeakable(sel, text)` and only proceeds when that returns `true`.
+`onMouseUp` in `src/content/content-selection.js` no longer calls `showPopupIconIfNeeded()` directly. It first runs `isSelectionSpeakable(snap)` and only proceeds when that returns `true`. `snap` is the `{ text, anchorNode, range }` snapshot from `readSelection(path)`, which also reads selections inside open shadow roots.
 
 ## Filter rules (return `false` → popup is hidden)
 
@@ -20,7 +20,7 @@ type: feature
 
 ## Notes for future edits
 
-- Anchor element is derived from `sel.anchorNode` (handles both element and text nodes).
+- Anchor element is derived from `snap.anchorNode` (handles both element and text nodes). For a shadow-DOM selection it is a node inside the shadow tree, so `closest()` filters only see that tree.
 - The Unicode property regex is wrapped in `try/catch` for engines that don't support `\p{...}` escapes.
 - Number regex intentionally allows currency symbols, percent, parentheses and separators so prices, phone numbers and ratios are filtered out.
-- `showPopupIconIfNeeded(sel, text)` now accepts the pre-resolved selection/text from `onMouseUp` to avoid re-querying `window.getSelection()`; it still works when called with no args.
+- `showPopupIconIfNeeded(snap)` takes the snapshot from `onMouseUp`; called with no args it reads the document selection via `readSelection()`.
