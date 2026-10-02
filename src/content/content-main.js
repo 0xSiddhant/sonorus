@@ -1,14 +1,9 @@
 /* content-main.js — Boot and message handler. Loaded last so all other scripts are in scope.
-   Calls: loadVoices, stopTTS, setPillState, notifyBackground, onMouseUp, onDocMouseDown. */
+   Calls: loadVoices, pauseTTS, stopTTS, onMouseUp, onDocMouseDown. */
 
 function onMessage(message) {
   if (message.type === "CMD_PAUSE") {
-    if (speechSynthesis.speaking && !isTTSPaused) {
-      speechSynthesis.pause();
-      isTTSPaused = true;
-      setPillState("paused");
-      notifyBackground({ type: "TTS_PAUSED" });
-    }
+    pauseTTS();
   } else if (message.type === "CMD_STOP") {
     stopTTS();
   }

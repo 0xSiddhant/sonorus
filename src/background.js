@@ -7,7 +7,14 @@ let ttsState = {
   tabId: null,
 }
 
+// Only the playing tab may change its state — idle tabs also send TTS_STOPPED on pagehide.
+const OWNER_ONLY = new Set(['TTS_PAUSED', 'TTS_RESUMED', 'TTS_STOPPED'])
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (OWNER_ONLY.has(message.type) && sender.tab?.id !== ttsState.tabId) {
+    sendResponse({ ok: true })
+    return true
+  }
   switch (message.type) {
     case 'TTS_STARTED':
       ttsState = {
