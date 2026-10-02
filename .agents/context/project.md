@@ -89,7 +89,7 @@ sonorus/
 `window.speechSynthesis` is used directly in content scripts. This gives access to 20–40+ system + Google voices. See `docs/chrome-tts-vs-speech-synthesis.md` for a full comparison — the short reason is that `chrome.tts` is unavailable in content scripts and would require routing every TTS call through `background.js` via message passing.
 
 **Known limitations** — see `docs/web-speech-api-limitations.md` for full details:
-- `speechSynthesis.pause()` / `resume()` are broken in Chrome. The codebase uses a cancel+restart workaround via `resumeTTS()` and tracks position with `onboundary` + `isTTSPaused`.
+- `speechSynthesis.pause()` / `resume()` are broken in Chrome — never call `pause()`. `pauseTTS()` cancels and remembers the position; `resumeTTS()` restarts from it. Position comes from speaking one sentence per utterance plus `onboundary` (which Google network voices never fire).
 - `SpeechSynthesisUtterance.volume` is ignored on macOS — volume control was intentionally removed from the UI.
 
 ### Vanilla JS, no bundler

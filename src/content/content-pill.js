@@ -1,7 +1,7 @@
 /* content-pill.js — Floating pill player UI and its control handlers.
    Reads: settings, voices, currentText, currentCharIndex, currentUtterance.
    Writes: pillEl, currentUtterance, currentCharOffset.
-   Calls: stopTTS, getSelectedVoice, attachUtteranceEvents, showPopupIcon, onDragStart, notifyBackground. */
+   Calls: stopTTS, pauseTTS, resumeTTS, getSelectedVoice, attachUtteranceEvents, showPopupIcon, onDragStart, notifyBackground. */
 
 function buildVoiceOptions() {
   const grouped = {};
@@ -166,11 +166,8 @@ function onPlayPause() {
     resumeTTS();
     setPillState("playing");
     notifyBackground({ type: "TTS_RESUMED" });
-  } else if (speechSynthesis.speaking) {
-    speechSynthesis.pause();
-    isTTSPaused = true;
-    setPillState("paused");
-    notifyBackground({ type: "TTS_PAUSED" });
+  } else {
+    pauseTTS();
   }
 }
 
