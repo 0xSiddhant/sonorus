@@ -31,6 +31,13 @@ let isTTSPaused = false; // tracks pause state ourselves — speechSynthesis.pau
 let currentCharIndex = 0;  // absolute char position in currentText
 let currentCharOffset = 0; // start offset of the current utterance within currentText
 
+// Content scripts run in every frame; only the top frame shows the pill and speaks.
+const isTopFrame = window === window.top;
+const ownHostname = location.hostname.replace(/^www\./, "");
+// Hostname of the tab's top-level page — what the popup's site toggle blocks.
+// Subframes can't read it cross-origin, so it's fetched from the background on first use.
+let tabHostname = isTopFrame ? ownHostname : null;
+
 function notifyBackground(msg) {
   try {
     chrome.runtime.sendMessage(msg, () => void chrome.runtime.lastError);

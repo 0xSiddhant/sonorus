@@ -125,15 +125,21 @@ All communication is via `chrome.runtime.sendMessage` / `chrome.tabs.sendMessage
 | content → background | `TTS_PAUSED` | Speech paused |
 | content → background | `TTS_RESUMED` | Speech resumed |
 | content → background | `TTS_STOPPED` | Speech ended or cancelled |
+| content (subframe) → background | `SPEAK_IN_TOP_FRAME` | Text selected in an iframe; relayed to the top frame as `CMD_SPEAK` |
+| content (subframe) → background | `GET_TAB_HOSTNAME` | Top-level hostname, for blocked-site checks |
 | popup → background | `GET_STATE` | Query current TTS status for popup display |
 | popup → background | `PAUSE` / `RESUME` / `STOP` | Quick controls from popup, relayed to the playing tab |
+| background → content (top frame) | `CMD_SPEAK` | Play text selected in a subframe |
 | background → content | `CMD_PAUSE` | Background relays pause command to content |
 | background → content | `CMD_RESUME` | Background relays resume command to content |
 | background → content | `CMD_STOP` | Background relays stop command to content |
 
-`background.js` mirrors its TTS state to `chrome.storage.session` so it survives the service worker being killed when idle (Firefox < 115 has no `storage.session` and keeps it in memory only). Only the tab that sent the latest `TTS_STARTED` may change it.
+`background.js` mirrors its TTS state to `chrome.storage.session` so it survives the service worker being killed when idle (Firefox < 115 has no `storage.session` and keeps it in memory only). Only the frame (tab + frameId) that sent the latest `TTS_STARTED` may change it.
 
 `content-state.js` defines `notifyBackground(msg)` — a helper that wraps all `sendMessage` calls and silences errors when the extension context is invalidated (e.g. after a reload).
+
+### Iframes
+Content scripts run in every frame (`all_frames`, `match_about_blank`). Subframes only detect selections and show the 🔊 icon. `playText()` sends the text to the top frame, which owns the single pill and speaks it, so the pill is never clipped inside a small iframe. If the top frame has no content script, the subframe plays it itself. A subframe is disabled when either its own hostname or the tab's top-level hostname is blocked. The background tracks `tabId` + `frameId` of the playing frame, so iframes unloading (ads do constantly) can't reset its state.
 
 ### Content script file split
 `content/` is split into 7 files injected in order via `manifest.json`. They all share the same global scope — no bundler or ES modules needed. Load order: `content-state.js` first (declares all shared globals), then TTS/UI/drag/selection modules, then `content-main.js` last (calls `init()`). Never re-declare a shared global with `let`/`const` outside of `content-state.js`.

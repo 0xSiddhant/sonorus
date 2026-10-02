@@ -12,6 +12,23 @@ function getSelectedVoice() {
   return voices.find((v) => v.name === settings.selectedVoiceName) || null;
 }
 
+// Subframes hand the text to the top frame so the pill isn't clipped inside a
+// small iframe. Falls back to playing here if the top frame has no content
+// script (e.g. a page the extension can't run on).
+function playText(text) {
+  if (isTopFrame) {
+    startTTS(text);
+    return;
+  }
+  try {
+    chrome.runtime.sendMessage({ type: "SPEAK_IN_TOP_FRAME", text }, (res) => {
+      if (chrome.runtime.lastError || !res?.ok) startTTS(text);
+    });
+  } catch (_) {
+    startTTS(text); // extension context invalidated
+  }
+}
+
 function startTTS(text) {
   // Clear any pending auto-hide from a prior session before starting fresh.
   if (pillHideTimer) {
