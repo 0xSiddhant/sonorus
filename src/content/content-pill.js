@@ -1,7 +1,11 @@
 /* content-pill.js — Floating pill player UI and its control handlers.
    Reads: settings, voices, currentText, currentCharIndex, currentUtterance.
    Writes: pillEl, currentUtterance, currentCharOffset.
-   Calls: stopTTS, pauseTTS, resumeTTS, getSelectedVoice, attachUtteranceEvents, showPopupIcon, onDragStart, notifyBackground. */
+   Calls: stopTTS, pauseTTS, resumeTTS, isEnabledHere, getSelectedVoice, attachUtteranceEvents, showPopupIcon, onDragStart, notifyBackground. */
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
 
 function buildVoiceOptions() {
   const grouped = {};
@@ -23,14 +27,20 @@ function buildVoiceOptions() {
   allLangs.forEach((lang) => {
     const label =
       new Intl.DisplayNames(["en"], { type: "language" }).of(lang) || lang;
-    html += `<optgroup label="${label}">`;
+    html += `<optgroup label="${escapeHtml(label)}">`;
     grouped[lang].forEach((v) => {
       const sel = v.name === settings.selectedVoiceName ? " selected" : "";
-      html += `<option value="${v.name}"${sel}>${v.name} (${v.lang})</option>`;
+      html += `<option value="${escapeHtml(v.name)}"${sel}>${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`;
     });
     html += "</optgroup>";
   });
   return html;
+}
+
+// Voices often load after the pill is built.
+function refreshVoiceOptions() {
+  const select = document.getElementById("sonorus-voice");
+  if (select) select.innerHTML = buildVoiceOptions();
 }
 
 function showPill() {
@@ -81,7 +91,10 @@ function showPill() {
     .addEventListener("click", () => stopTTS());
   document
     .getElementById("sonorus-speed")
-    .addEventListener("input", onSpeedChange);
+    .addEventListener("input", onSpeedInput);
+  document
+    .getElementById("sonorus-speed")
+    .addEventListener("change", onSpeedChange);
   document
     .getElementById("sonorus-voice")
     .addEventListener("change", onVoiceChange);
@@ -114,7 +127,7 @@ function hidePill() {
   pillEl = null;
   // Call showPopupIcon directly (not showPopupIconIfNeeded) to avoid
   // auto-restarting TTS when the showPopupIcon setting is off and the pill is dismissed.
-  if (settings.showPopupIcon) {
+  if (settings.showPopupIcon && isEnabledHere()) {
     const sel = window.getSelection();
     const text = sel?.toString().trim();
     if (text && text.length >= settings.minChars) {
@@ -171,12 +184,15 @@ function onPlayPause() {
   }
 }
 
-function onSpeedChange(e) {
+function onSpeedInput(e) {
   const rate = parseFloat(e.target.value);
   settings.defaultSpeed = rate;
   const label = document.getElementById("sonorus-speed-val");
   if (label) label.textContent = `${rate}x`;
+}
 
+// Restart on release only — "input" fires on every step while dragging.
+function onSpeedChange() {
   // If paused, don't restart — resumeTTS() reads settings.defaultSpeed so the
   // new rate will be picked up automatically when the user clicks play.
   if (!currentText || isTTSPaused) return;

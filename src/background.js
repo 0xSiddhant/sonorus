@@ -1,5 +1,4 @@
-// TTS state maintained across popup open/close
-let ttsState = {
+const IDLE_STATE = {
   status: 'idle', // 'idle' | 'playing' | 'paused'
   text: '',
   speed: 1.0,
@@ -7,67 +6,77 @@ let ttsState = {
   tabId: null,
 }
 
+// TTS state maintained across popup open/close. Mirrored to storage.session
+// because the worker is killed when idle; Firefox < 115 lacks it and keeps
+// the in-memory copy only.
+let ttsState = { ...IDLE_STATE }
+const stateLoaded = chrome.storage.session
+  ? chrome.storage.session.get({ ttsState: IDLE_STATE }).then((data) => {
+      ttsState = data.ttsState
+    })
+  : Promise.resolve()
+
+function setState(next) {
+  ttsState = next
+  chrome.storage.session?.set({ ttsState })
+}
+
 // Only the playing tab may change its state — idle tabs also send TTS_STOPPED on pagehide.
 const OWNER_ONLY = new Set(['TTS_PAUSED', 'TTS_RESUMED', 'TTS_STOPPED'])
 
+// Popup commands relayed to the playing tab.
+const COMMANDS = { PAUSE: 'CMD_PAUSE', RESUME: 'CMD_RESUME', STOP: 'CMD_STOP' }
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (OWNER_ONLY.has(message.type) && sender.tab?.id !== ttsState.tabId) {
-    sendResponse({ ok: true })
-    return true
-  }
+  stateLoaded.then(() => {
+    handleMessage(message, sender)
+    sendResponse(message.type === 'GET_STATE' ? ttsState : { ok: true })
+  })
+  return true
+})
+
+function handleMessage(message, sender) {
+  if (OWNER_ONLY.has(message.type) && sender.tab?.id !== ttsState.tabId) return
+
   switch (message.type) {
     case 'TTS_STARTED':
-      ttsState = {
+      setState({
         status: 'playing',
         text: message.text,
         speed: message.speed || 1.0,
         voice: message.voice || '',
-        tabId: sender.tab?.id || null,
-      }
-      sendResponse({ ok: true })
+        tabId: sender.tab?.id ?? null,
+      })
       break
 
     case 'TTS_PAUSED':
-      ttsState.status = 'paused'
-      sendResponse({ ok: true })
+      setState({ ...ttsState, status: 'paused' })
       break
 
     case 'TTS_RESUMED':
-      ttsState.status = 'playing'
-      sendResponse({ ok: true })
+      setState({ ...ttsState, status: 'playing' })
       break
 
     case 'TTS_STOPPED':
-      ttsState = { status: 'idle', text: '', speed: 1.0, voice: '', tabId: null }
-      sendResponse({ ok: true })
-      break
-
-    case 'GET_STATE':
-      sendResponse(ttsState)
+      setState({ ...IDLE_STATE })
       break
 
     case 'PAUSE':
-      if (ttsState.tabId !== null) {
-        chrome.tabs.sendMessage(ttsState.tabId, { type: 'CMD_PAUSE' })
-      }
-      sendResponse({ ok: true })
-      break
-
+    case 'RESUME':
     case 'STOP':
       if (ttsState.tabId !== null) {
-        chrome.tabs.sendMessage(ttsState.tabId, { type: 'CMD_STOP' })
+        chrome.tabs.sendMessage(ttsState.tabId, { type: COMMANDS[message.type] }, () => void chrome.runtime.lastError)
       }
-      sendResponse({ ok: true })
       break
   }
-  return true
-})
+}
 
 // Stop TTS when the TTS tab navigates to a new URL (same-tab navigation).
 // Tab switches are intentionally ignored so TTS keeps playing in background tabs.
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  await stateLoaded
   if (changeInfo.status === 'loading' && tabId === ttsState.tabId && ttsState.status !== 'idle') {
-    ttsState = { status: 'idle', text: '', speed: 1.0, voice: '', tabId: null }
+    setState({ ...IDLE_STATE })
     chrome.tabs.sendMessage(tabId, { type: 'CMD_STOP' }, () => void chrome.runtime.lastError)
   }
 })

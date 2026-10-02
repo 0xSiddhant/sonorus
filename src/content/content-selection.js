@@ -1,8 +1,17 @@
 /* content-selection.js — Text selection detection and popup icon trigger.
    Reads: pillEl, popupIconEl, settings. Calls: hidePopupIcon, showPopupIcon, startTTS. */
 
+function isEnabledHere() {
+  const hostname = location.hostname.replace(/^www\./, "");
+  return settings.enabled && !settings.blockedSites.includes(hostname);
+}
+
 function onMouseUp(e) {
   if (pillEl?.contains(e.target) || popupIconEl?.contains(e.target)) return;
+  if (!isEnabledHere()) {
+    hidePopupIcon();
+    return;
+  }
   // Small delay lets the browser finalise the selection range before we read it.
   setTimeout(() => {
     const sel = window.getSelection();
