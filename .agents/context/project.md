@@ -126,9 +126,12 @@ All communication is via `chrome.runtime.sendMessage` / `chrome.tabs.sendMessage
 | content → background | `TTS_RESUMED` | Speech resumed |
 | content → background | `TTS_STOPPED` | Speech ended or cancelled |
 | popup → background | `GET_STATE` | Query current TTS status for popup display |
-| popup → background | `PAUSE` / `STOP` / `RESUME` | Quick controls from popup |
+| popup → background | `PAUSE` / `RESUME` / `STOP` | Quick controls from popup, relayed to the playing tab |
 | background → content | `CMD_PAUSE` | Background relays pause command to content |
+| background → content | `CMD_RESUME` | Background relays resume command to content |
 | background → content | `CMD_STOP` | Background relays stop command to content |
+
+`background.js` mirrors its TTS state to `chrome.storage.session` so it survives the service worker being killed when idle (Firefox < 115 has no `storage.session` and keeps it in memory only). Only the tab that sent the latest `TTS_STARTED` may change it.
 
 `content-state.js` defines `notifyBackground(msg)` — a helper that wraps all `sendMessage` calls and silences errors when the extension context is invalidated (e.g. after a reload).
 

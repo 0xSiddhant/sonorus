@@ -32,11 +32,12 @@ function startTTS(text) {
 // keep the position known. See docs/web-speech-api-limitations.md.
 const MAX_CHUNK_CHARS = 200;
 
-// First sentence end (incl. Hindi danda) or line break, else the last space.
+// First sentence end (incl. Hindi danda and CJK, which has no trailing space)
+// or line break, else the last space.
 function nextChunkEnd(text, start) {
   const hardEnd = Math.min(text.length, start + MAX_CHUNK_CHARS);
   const span = text.slice(start, hardEnd);
-  const sentence = span.match(/[.!?।॥]+["'”’)\]]*\s|\n/);
+  const sentence = span.match(/[.!?।॥]+["'”’)\]]*\s|[。！？]+[」』）"'”’]*|\n/);
   if (sentence) return start + sentence.index + sentence[0].length;
   if (hardEnd === text.length) return hardEnd;
   const lastSpace = span.search(/\s\S*$/);
@@ -184,7 +185,7 @@ function attachUtteranceEvents(utt, chunkEnd) {
       return;
     }
     currentUtterance = null;
-    isTTSPaused = false;
+    isTTSPaused = true; // Play retries from the saved position
     setPillState("error");
     notifyBackground({ type: "TTS_STOPPED" });
   };

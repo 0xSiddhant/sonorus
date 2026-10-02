@@ -1,7 +1,8 @@
 /* Sonorus — popup.js */
 
+// Exact match — the same rule the content script uses to decide whether to run.
 function isSiteBlocked(hostname, blockedSites) {
-  return blockedSites.some(b => hostname === b || hostname.endsWith('.' + b))
+  return blockedSites.includes(hostname)
 }
 
 const statusDot = document.getElementById('status-dot')
@@ -21,11 +22,13 @@ async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   try {
     const url = new URL(tab.url)
-    currentTabHostname = url.hostname.replace(/^www\./, '')
-  } catch (_) {
-    currentTabHostname = ''
-  }
+    // Content scripts only run on web pages; file:// has no hostname to block.
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      currentTabHostname = url.hostname.replace(/^www\./, '')
+    }
+  } catch (_) {}
   siteHostname.textContent = currentTabHostname || '—'
+  siteToggle.disabled = !currentTabHostname
 
   const { blockedSites = [] } = await chrome.storage.sync.get({ blockedSites: [] })
   siteToggle.checked = !isSiteBlocked(currentTabHostname, blockedSites)
@@ -92,10 +95,11 @@ btnSettings.addEventListener('click', () => {
 })
 
 siteToggle.addEventListener('change', async () => {
+  if (!currentTabHostname) return
   const { blockedSites = [] } = await chrome.storage.sync.get({ blockedSites: [] })
   let updated
   if (siteToggle.checked) {
-    updated = blockedSites.filter(s => currentTabHostname !== s && !currentTabHostname.endsWith('.' + s))
+    updated = blockedSites.filter(s => s !== currentTabHostname)
   } else {
     if (!isSiteBlocked(currentTabHostname, blockedSites)) {
       updated = [...blockedSites, currentTabHostname]

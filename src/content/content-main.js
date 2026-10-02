@@ -1,9 +1,11 @@
 /* content-main.js — Boot and message handler. Loaded last so all other scripts are in scope.
-   Calls: loadVoices, pauseTTS, stopTTS, onMouseUp, onDocMouseDown. */
+   Calls: loadVoices, refreshVoiceOptions, onPlayPause, pauseTTS, stopTTS, onMouseUp, onDocMouseDown. */
 
 function onMessage(message) {
   if (message.type === "CMD_PAUSE") {
     pauseTTS();
+  } else if (message.type === "CMD_RESUME") {
+    if (isTTSPaused) onPlayPause();
   } else if (message.type === "CMD_STOP") {
     stopTTS();
   }
@@ -13,11 +15,14 @@ async function init() {
   const stored = await chrome.storage.sync.get(DEFAULT_SETTINGS);
   settings = { ...DEFAULT_SETTINGS, ...stored };
 
-  const hostname = location.hostname.replace(/^www\./, "");
-  if (!settings.enabled || settings.blockedSites.includes(hostname)) return;
-
+  // Listeners are always attached; isEnabledHere() gates them so enabling or
+  // blocking the site takes effect without a reload.
   loadVoices();
-  speechSynthesis.onvoiceschanged = loadVoices;
+  // addEventListener, not onvoiceschanged — that property is shared with the page.
+  speechSynthesis.addEventListener("voiceschanged", () => {
+    loadVoices();
+    refreshVoiceOptions();
+  });
 
   document.addEventListener("mouseup", onMouseUp);
   document.addEventListener("mousedown", onDocMouseDown);
