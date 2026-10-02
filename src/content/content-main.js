@@ -1,8 +1,12 @@
 /* content-main.js — Boot and message handler. Loaded last so all other scripts are in scope.
-   Calls: loadVoices, refreshVoiceOptions, onPlayPause, pauseTTS, stopTTS, onMouseUp, onDocMouseDown. */
+   Calls: loadVoices, refreshVoiceOptions, startTTS, onPlayPause, pauseTTS, stopTTS, onMouseUp, onDocMouseDown. */
 
-function onMessage(message) {
-  if (message.type === "CMD_PAUSE") {
+function onMessage(message, _sender, sendResponse) {
+  if (message.type === "CMD_SPEAK") {
+    // Text selected in a subframe; the background only sends this to the top frame.
+    startTTS(message.text);
+    sendResponse({ ok: true });
+  } else if (message.type === "CMD_PAUSE") {
     pauseTTS();
   } else if (message.type === "CMD_RESUME") {
     if (isTTSPaused) onPlayPause();
@@ -26,7 +30,10 @@ async function init() {
 
   document.addEventListener("mouseup", onMouseUp);
   document.addEventListener("mousedown", onDocMouseDown);
-  window.addEventListener("pagehide", () => stopTTS());
+  // Ad iframes come and go constantly — only frames with a session need to stop.
+  window.addEventListener("pagehide", () => {
+    if (currentText || pillEl) stopTTS();
+  });
 
   chrome.runtime.onMessage.addListener(onMessage);
 

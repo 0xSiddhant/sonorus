@@ -1,19 +1,34 @@
 /* content-selection.js — Text selection detection and popup icon trigger.
-   Reads: pillEl, popupIconEl, settings. Calls: hidePopupIcon, showPopupIcon, startTTS. */
+   Reads: pillEl, popupIconEl, settings, ownHostname. Writes: tabHostname.
+   Calls: hidePopupIcon, showPopupIcon, playText. */
 
 function isEnabledHere() {
-  const hostname = location.hostname.replace(/^www\./, "");
-  return settings.enabled && !settings.blockedSites.includes(hostname);
+  const blocked = settings.blockedSites;
+  return settings.enabled && !blocked.includes(ownHostname) && !blocked.includes(tabHostname);
+}
+
+async function loadTabHostname() {
+  if (tabHostname !== null) return;
+  tabHostname = await new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: "GET_TAB_HOSTNAME" }, (res) =>
+        resolve(chrome.runtime.lastError ? "" : res?.hostname || ""),
+      );
+    } catch (_) {
+      resolve("");
+    }
+  });
 }
 
 function onMouseUp(e) {
   if (pillEl?.contains(e.target) || popupIconEl?.contains(e.target)) return;
-  if (!isEnabledHere()) {
-    hidePopupIcon();
-    return;
-  }
   // Small delay lets the browser finalise the selection range before we read it.
-  setTimeout(() => {
+  setTimeout(async () => {
+    await loadTabHostname();
+    if (!isEnabledHere()) {
+      hidePopupIcon();
+      return;
+    }
     const sel = window.getSelection();
     const text = sel?.toString().trim() || "";
     if (!isSelectionSpeakable(sel, text)) {
@@ -79,7 +94,7 @@ function showPopupIconIfNeeded(sel, text) {
     return;
   }
   if (!settings.showPopupIcon) {
-    startTTS(text);
+    playText(text);
     return;
   }
   showPopupIcon(sel, text);
