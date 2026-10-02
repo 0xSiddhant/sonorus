@@ -22,7 +22,7 @@ function playText(text) {
   }
   try {
     chrome.runtime.sendMessage({ type: "SPEAK_IN_TOP_FRAME", text }, (res) => {
-      if (chrome.runtime.lastError || !res?.ok) startTTS(text);
+      if (chrome.runtime.lastError || res?.reason === "no-receiver") startTTS(text);
     });
   } catch (_) {
     startTTS(text); // extension context invalidated
@@ -42,7 +42,28 @@ function startTTS(text) {
 
   showPill();
   setPillState("loading");
-  speechSynthesis.speak(prepareChunk(0));
+  speakWhenClear(prepareChunk(0));
+}
+
+// Speech started from the context menu on a PDF runs in the background via
+// chrome.tts, which this page's cancel() can't stop — our utterance would queue
+// behind it. Ask the background to stop it first (a no-op when it isn't speaking).
+function speakWhenClear(utt) {
+  let spoken = false;
+  const speak = () => {
+    if (spoken) return;
+    spoken = true;
+    if (currentUtterance === utt) speechSynthesis.speak(utt);
+  };
+  setTimeout(speak, 500);
+  try {
+    chrome.runtime.sendMessage({ type: "STOP_BACKGROUND_TTS" }, () => {
+      void chrome.runtime.lastError;
+      speak();
+    });
+  } catch (_) {
+    speak(); // extension context invalidated
+  }
 }
 
 // Google voices never fire onboundary, so speak one sentence per utterance to
@@ -134,11 +155,8 @@ function resumeTTS() {
   // so the next speak() queues but never fires. resume() force-clears that flag.
   speechSynthesis.resume();
 
-  const utt = prepareChunk(resumeOffset);
-  // Chrome drops speak() called synchronously after cancel(); defer to next tick.
-  setTimeout(() => {
-    if (currentUtterance === utt) speechSynthesis.speak(utt);
-  }, 0);
+  // Also defers speak() — Chrome drops it when called synchronously after cancel().
+  speakWhenClear(prepareChunk(resumeOffset));
 }
 
 function detachUtteranceEvents(utt) {

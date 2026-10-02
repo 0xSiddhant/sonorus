@@ -14,6 +14,7 @@ Firefox requires three things the Chrome manifest doesn't have or handles differ
 | `options_page` | `"settings/settings.html"` | — |
 | `options_ui` | — | `{ "page": "settings/settings.html", "browser_style": false }` |
 | `browser_specific_settings` | Not used | `{ "gecko": { "id": "...", "strict_min_version": "109.0" } }` |
+| `permissions` | includes `"tts"` | no `"tts"` — Firefox has no `chrome.tts`, so reading PDFs via the context menu is Chrome-only |
 
 **Why `scripts` instead of `service_worker`?**
 Firefox MV3 uses an event-page model for background scripts, not a true service worker. Using `scripts` works across all Firefox 109+ versions. Firefox 109 is the minimum because it's the first stable release with full MV3 support.

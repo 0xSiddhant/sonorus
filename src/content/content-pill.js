@@ -1,7 +1,7 @@
 /* content-pill.js — Floating pill player UI and its control handlers.
    Reads: settings, voices, currentText, currentCharIndex, currentUtterance.
    Writes: pillEl, currentUtterance, currentCharOffset.
-   Calls: stopTTS, pauseTTS, resumeTTS, isEnabledHere, getSelectedVoice, attachUtteranceEvents, showPopupIcon, onDragStart, notifyBackground. */
+   Calls: stopTTS, pauseTTS, resumeTTS, isEnabledHere, readSelection, getSelectedVoice, attachUtteranceEvents, showPopupIcon, onDragStart, notifyBackground. */
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -128,10 +128,9 @@ function hidePill() {
   // Call showPopupIcon directly (not showPopupIconIfNeeded) to avoid
   // auto-restarting TTS when the showPopupIcon setting is off and the pill is dismissed.
   if (settings.showPopupIcon && isEnabledHere()) {
-    const sel = window.getSelection();
-    const text = sel?.toString().trim();
-    if (text && text.length >= settings.minChars) {
-      showPopupIcon(sel, text);
+    const snap = readSelection();
+    if (snap?.text && snap.text.length >= settings.minChars) {
+      showPopupIcon(snap);
     }
   }
 }
