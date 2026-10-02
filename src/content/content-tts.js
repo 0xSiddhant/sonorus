@@ -19,8 +19,7 @@ function startTTS(text) {
     pillHideTimer = null;
   }
   stopTTS(false);
-  // Chrome's speech queue is browser-wide: take it over so this tab doesn't
-  // wait behind an utterance still playing in another tab.
+  // Take over the speech queue, which Chrome shares across tabs.
   speechSynthesis.cancel();
   currentText = text;
 
@@ -29,17 +28,11 @@ function startTTS(text) {
   speechSynthesis.speak(prepareChunk(0));
 }
 
-// Network voices (e.g. "Google हिन्दी") never fire onboundary, so the spoken
-// position can't be tracked word-by-word. Speaking one sentence-sized chunk per
-// utterance makes the position known at every chunk start: speed/voice changes
-// and resume restart from the current sentence instead of the beginning, and
-// the progress bar advances per chunk. Voices that do fire onboundary still
-// refine the position word-by-word within each chunk.
+// Google voices never fire onboundary, so speak one sentence per utterance to
+// keep the position known. See docs/web-speech-api-limitations.md.
 const MAX_CHUNK_CHARS = 200;
 
-// Returns the end index (exclusive) of the chunk starting at `start`: the first
-// sentence end (incl. Devanagari danda) or line break, else the last space
-// within MAX_CHUNK_CHARS, else a hard cut.
+// First sentence end (incl. Hindi danda) or line break, else the last space.
 function nextChunkEnd(text, start) {
   const hardEnd = Math.min(text.length, start + MAX_CHUNK_CHARS);
   const span = text.slice(start, hardEnd);
@@ -50,8 +43,6 @@ function nextChunkEnd(text, start) {
   return lastSpace > 0 ? start + lastSpace + 1 : hardEnd;
 }
 
-// Builds the utterance for the chunk starting at `offset` and makes it current.
-// The caller is responsible for speak() — resumeTTS() must defer it.
 function prepareChunk(offset) {
   while (offset < currentText.length && /\s/.test(currentText[offset])) {
     offset++;
@@ -82,9 +73,7 @@ function stopTTS(hidePillAfter = true) {
   // which would otherwise schedule a stale hidePill() 1.5s later.
   if (currentUtterance) {
     detachUtteranceEvents(currentUtterance);
-    // cancel() stops whatever is speaking from this origin in ANY tab, so only
-    // call it when this tab owns the utterance — otherwise a reload or Stop in
-    // an idle tab would kill playback in another tab.
+    // cancel() also stops other tabs' speech — only call it if this tab is speaking.
     speechSynthesis.cancel();
   }
   currentUtterance = null;
@@ -99,10 +88,8 @@ function stopTTS(hidePillAfter = true) {
   }
 }
 
-// Pause = remember the position and cancel, never speechSynthesis.pause().
-// resumeTTS() restarts from currentCharIndex regardless, and Chrome's pause()
-// is broken: it sometimes keeps playing, and after it the next utterance can
-// ignore its voice and fall back to the default one.
+// Chrome's pause() is broken and can drop the voice on resume, so cancel
+// instead — resumeTTS() restarts from the saved position.
 function pauseTTS() {
   if (!currentUtterance || isTTSPaused) return;
   detachUtteranceEvents(currentUtterance);
@@ -176,7 +163,7 @@ function attachUtteranceEvents(utt, chunkEnd) {
       speechSynthesis.speak(prepareChunk(chunkEnd));
       return;
     }
-    currentUtterance = null; // finished — this tab no longer owns the speech queue
+    currentUtterance = null;
     currentCharIndex = 0;
     currentCharOffset = 0;
     isTTSPaused = false;
@@ -190,10 +177,8 @@ function attachUtteranceEvents(utt, chunkEnd) {
   };
   utt.onerror = (e) => {
     if (e.error === "interrupted" || e.error === "canceled") {
-      // Our own cancel() calls null these handlers first, so reaching here means
-      // another tab cancelled or took over the shared speech queue. Reset the
-      // pill instead of leaving it stuck on "playing". Drop the utterance first
-      // so stopTTS() skips cancel() and doesn't kill the tab that took over.
+      // We detach handlers before our own cancels, so another tab interrupted us.
+      // Null the utterance so stopTTS() doesn't cancel that tab's speech.
       currentUtterance = null;
       stopTTS();
       return;
