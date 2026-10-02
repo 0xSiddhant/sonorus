@@ -183,6 +183,7 @@ function attachUtteranceEvents(utt, chunkEnd) {
       stopTTS();
       return;
     }
+    currentUtterance = null;
     isTTSPaused = false;
     setPillState("error");
     notifyBackground({ type: "TTS_STOPPED" });
