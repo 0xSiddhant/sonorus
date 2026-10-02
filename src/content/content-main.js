@@ -34,6 +34,9 @@ async function init() {
     for (const [key, { newValue }] of Object.entries(changes)) {
       settings[key] = newValue;
     }
+    if ((changes.enabled || changes.blockedSites) && !isEnabledHere() && (currentText || pillEl)) {
+      stopTTS();
+    }
   });
 }
 
