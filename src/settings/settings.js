@@ -16,6 +16,10 @@ const DEFAULTS = {
 let voices = []
 let blockedSites = []
 
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+}
+
 // ─── Voice loading ─────────────────────────────────────────────────────────
 
 function loadVoices(selectedName) {
@@ -40,10 +44,10 @@ function loadVoices(selectedName) {
   allLangs.forEach(lang => {
     let label = lang
     try { label = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang) || lang } catch (_) {}
-    html += `<optgroup label="${label}">`
+    html += `<optgroup label="${escapeHtml(label)}">`
     grouped[lang].forEach(v => {
       const sel2 = v.name === selectedName ? ' selected' : ''
-      html += `<option value="${v.name}"${sel2}>${v.name} (${v.lang})</option>`
+      html += `<option value="${escapeHtml(v.name)}"${sel2}>${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`
     })
     html += '</optgroup>'
   })
@@ -68,7 +72,7 @@ function renderBlockedList() {
   blockedSites.forEach(site => {
     const chip = document.createElement('div')
     chip.className = 'site-chip'
-    chip.innerHTML = `<span>${site}</span><button class="chip-remove" data-site="${site}">✕</button>`
+    chip.innerHTML = `<span>${escapeHtml(site)}</span><button class="chip-remove" data-site="${escapeHtml(site)}">✕</button>`
     list.appendChild(chip)
   })
 }
@@ -155,17 +159,17 @@ function wire() {
     el.addEventListener('change', save)
   })
 
-  // Sliders with live label update
+  // Sliders: live label on input, save on release — storage.sync allows 120 writes/min.
   document.getElementById('s-pitch').addEventListener('input', (e) => {
     document.getElementById('s-pitch-val').textContent = parseFloat(e.target.value).toFixed(1)
-    save()
   })
+  document.getElementById('s-pitch').addEventListener('change', save)
 
   document.getElementById('s-defaultSpeed').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value)
     document.getElementById('s-speed-val').textContent = `${v}x`
-    save()
   })
+  document.getElementById('s-defaultSpeed').addEventListener('change', save)
 
   // Speed presets
   document.querySelectorAll('.preset-btn').forEach(btn => {
@@ -222,6 +226,19 @@ async function init() {
     loadVoices(currentVoice || data.selectedVoiceName)
   }
   loadVoices(data.selectedVoiceName)
+
+  // The popup (blocked sites) and the pill (voice) also write settings; pick
+  // those up so the next save() here doesn't overwrite them with stale values.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'sync') return
+    if (changes.blockedSites) {
+      blockedSites = changes.blockedSites.newValue || []
+      renderBlockedList()
+    }
+    if (changes.selectedVoiceName) {
+      document.getElementById('s-voice').value = changes.selectedVoiceName.newValue || ''
+    }
+  })
 }
 
 init()

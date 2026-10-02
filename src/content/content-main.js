@@ -1,14 +1,19 @@
 /* content-main.js — Boot and message handler. Loaded last so all other scripts are in scope.
-   Calls: loadVoices, stopTTS, setPillState, notifyBackground, onMouseUp, onDocMouseDown. */
+   Calls: loadVoices, refreshVoiceOptions, startTTS, onPlayPause, pauseTTS, stopTTS, onMouseUp, onDocMouseDown. */
 
-function onMessage(message) {
-  if (message.type === "CMD_PAUSE") {
-    if (speechSynthesis.speaking && !isTTSPaused) {
-      speechSynthesis.pause();
-      isTTSPaused = true;
-      setPillState("paused");
-      notifyBackground({ type: "TTS_PAUSED" });
+function onMessage(message, _sender, sendResponse) {
+  if (message.type === "CMD_SPEAK") {
+    // Text from a subframe or the context menu; the background only sends this to the top frame.
+    if (!isEnabledHere()) {
+      sendResponse({ ok: false, reason: "disabled" });
+      return;
     }
+    startTTS(message.text);
+    sendResponse({ ok: true });
+  } else if (message.type === "CMD_PAUSE") {
+    pauseTTS();
+  } else if (message.type === "CMD_RESUME") {
+    if (isTTSPaused) onPlayPause();
   } else if (message.type === "CMD_STOP") {
     stopTTS();
   }
@@ -18,21 +23,30 @@ async function init() {
   const stored = await chrome.storage.sync.get(DEFAULT_SETTINGS);
   settings = { ...DEFAULT_SETTINGS, ...stored };
 
-  const hostname = location.hostname.replace(/^www\./, "");
-  if (!settings.enabled || settings.blockedSites.includes(hostname)) return;
-
+  // Listeners are always attached; isEnabledHere() gates them so enabling or
+  // blocking the site takes effect without a reload.
   loadVoices();
-  speechSynthesis.onvoiceschanged = loadVoices;
+  // addEventListener, not onvoiceschanged — that property is shared with the page.
+  speechSynthesis.addEventListener("voiceschanged", () => {
+    loadVoices();
+    refreshVoiceOptions();
+  });
 
   document.addEventListener("mouseup", onMouseUp);
   document.addEventListener("mousedown", onDocMouseDown);
-  window.addEventListener("pagehide", () => stopTTS());
+  // Ad iframes come and go constantly — only frames with a session need to stop.
+  window.addEventListener("pagehide", () => {
+    if (currentText || pillEl) stopTTS();
+  });
 
   chrome.runtime.onMessage.addListener(onMessage);
 
   chrome.storage.onChanged.addListener((changes) => {
     for (const [key, { newValue }] of Object.entries(changes)) {
       settings[key] = newValue;
+    }
+    if ((changes.enabled || changes.blockedSites) && !isEnabledHere() && (currentText || pillEl)) {
+      stopTTS();
     }
   });
 }

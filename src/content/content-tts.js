@@ -12,6 +12,23 @@ function getSelectedVoice() {
   return voices.find((v) => v.name === settings.selectedVoiceName) || null;
 }
 
+// Subframes hand the text to the top frame so the pill isn't clipped inside a
+// small iframe. Falls back to playing here if the top frame has no content
+// script (e.g. a page the extension can't run on).
+function playText(text) {
+  if (isTopFrame) {
+    startTTS(text);
+    return;
+  }
+  try {
+    chrome.runtime.sendMessage({ type: "SPEAK_IN_TOP_FRAME", text }, (res) => {
+      if (chrome.runtime.lastError || res?.reason === "no-receiver") startTTS(text);
+    });
+  } catch (_) {
+    startTTS(text); // extension context invalidated
+  }
+}
+
 function startTTS(text) {
   // Clear any pending auto-hide from a prior session before starting fresh.
   if (pillHideTimer) {
@@ -19,26 +36,71 @@ function startTTS(text) {
     pillHideTimer = null;
   }
   stopTTS(false);
+  // Take over the speech queue, which Chrome shares across tabs.
+  speechSynthesis.cancel();
   currentText = text;
-  currentCharIndex = 0;
-  currentCharOffset = 0;
 
   showPill();
   setPillState("loading");
+  speakWhenClear(prepareChunk(0));
+}
+
+// Speech started from the context menu on a PDF runs in the background via
+// chrome.tts, which this page's cancel() can't stop — our utterance would queue
+// behind it. Ask the background to stop it first (a no-op when it isn't speaking).
+function speakWhenClear(utt) {
+  let spoken = false;
+  const speak = () => {
+    if (spoken) return;
+    spoken = true;
+    if (currentUtterance === utt) speechSynthesis.speak(utt);
+  };
+  setTimeout(speak, 500);
+  try {
+    chrome.runtime.sendMessage({ type: "STOP_BACKGROUND_TTS" }, () => {
+      void chrome.runtime.lastError;
+      speak();
+    });
+  } catch (_) {
+    speak(); // extension context invalidated
+  }
+}
+
+// Google voices never fire onboundary, so speak one sentence per utterance to
+// keep the position known. See docs/web-speech-api-limitations.md.
+const MAX_CHUNK_CHARS = 200;
+
+// First sentence end (incl. Hindi danda and CJK, which has no trailing space)
+// or line break, else the last space.
+function nextChunkEnd(text, start) {
+  const hardEnd = Math.min(text.length, start + MAX_CHUNK_CHARS);
+  const span = text.slice(start, hardEnd);
+  const sentence = span.match(/[.!?।॥]+["'”’)\]]*\s|[。！？]+[」』）"'”’]*|\n/);
+  if (sentence) return start + sentence.index + sentence[0].length;
+  if (hardEnd === text.length) return hardEnd;
+  const lastSpace = span.search(/\s\S*$/);
+  return lastSpace > 0 ? start + lastSpace + 1 : hardEnd;
+}
+
+function prepareChunk(offset) {
+  while (offset < currentText.length && /\s/.test(currentText[offset])) {
+    offset++;
+  }
+  const end = nextChunkEnd(currentText, offset);
+  currentCharOffset = offset;
+  currentCharIndex = offset;
   updateProgressBar();
 
-  currentUtterance = new SpeechSynthesisUtterance(text);
+  currentUtterance = new SpeechSynthesisUtterance(currentText.slice(offset, end));
   currentUtterance.rate = settings.defaultSpeed;
   currentUtterance.pitch = settings.pitch;
-
   const voice = getSelectedVoice();
   if (voice) {
     currentUtterance.voice = voice;
     currentUtterance.lang = voice.lang;
   }
-
-  attachUtteranceEvents(currentUtterance);
-  speechSynthesis.speak(currentUtterance);
+  attachUtteranceEvents(currentUtterance, end);
+  return currentUtterance;
 }
 
 function stopTTS(hidePillAfter = true) {
@@ -49,14 +111,10 @@ function stopTTS(hidePillAfter = true) {
   // Null handlers before cancel — Chrome fires onend on the canceled utterance,
   // which would otherwise schedule a stale hidePill() 1.5s later.
   if (currentUtterance) {
-    currentUtterance.onboundary = null;
-    currentUtterance.onstart = null;
-    currentUtterance.onend = null;
-    currentUtterance.onerror = null;
-    currentUtterance.onpause = null;
-    currentUtterance.onresume = null;
+    detachUtteranceEvents(currentUtterance);
+    // cancel() also stops other tabs' speech — only call it if this tab is speaking.
+    speechSynthesis.cancel();
   }
-  speechSynthesis.cancel();
   currentUtterance = null;
   currentText = "";
   currentCharIndex = 0;
@@ -69,6 +127,18 @@ function stopTTS(hidePillAfter = true) {
   }
 }
 
+// Chrome's pause() is broken and can drop the voice on resume, so cancel
+// instead — resumeTTS() restarts from the saved position.
+function pauseTTS() {
+  if (!currentUtterance || isTTSPaused) return;
+  detachUtteranceEvents(currentUtterance);
+  speechSynthesis.cancel();
+  currentUtterance = null;
+  isTTSPaused = true;
+  setPillState("paused");
+  notifyBackground({ type: "TTS_PAUSED" });
+}
+
 function resumeTTS() {
   if (!currentText) return;
   // Snap back to the start of the word at currentCharIndex.
@@ -78,39 +148,27 @@ function resumeTTS() {
     resumeOffset--;
   }
   if (currentUtterance) {
-    currentUtterance.onboundary = null;
-    currentUtterance.onstart = null;
-    currentUtterance.onend = null;
-    currentUtterance.onerror = null;
-    currentUtterance.onpause = null;
-    currentUtterance.onresume = null;
+    detachUtteranceEvents(currentUtterance);
   }
   speechSynthesis.cancel();
   // Chrome bug: pause() leaves speechSynthesis.paused=true even after cancel(),
   // so the next speak() queues but never fires. resume() force-clears that flag.
   speechSynthesis.resume();
 
-  currentCharOffset = resumeOffset;
-  currentCharIndex = resumeOffset;
-  currentUtterance = new SpeechSynthesisUtterance(
-    currentText.slice(resumeOffset),
-  );
-  currentUtterance.rate = settings.defaultSpeed;
-  currentUtterance.pitch = settings.pitch;
-  const voice = getSelectedVoice();
-  if (voice) {
-    currentUtterance.voice = voice;
-    currentUtterance.lang = voice.lang;
-  }
-  attachUtteranceEvents(currentUtterance);
-  // Chrome drops speak() called synchronously after cancel(); defer to next tick.
-  const utt = currentUtterance;
-  setTimeout(() => {
-    if (currentUtterance === utt) speechSynthesis.speak(utt);
-  }, 0);
+  // Also defers speak() — Chrome drops it when called synchronously after cancel().
+  speakWhenClear(prepareChunk(resumeOffset));
 }
 
-function attachUtteranceEvents(utt) {
+function detachUtteranceEvents(utt) {
+  utt.onboundary = null;
+  utt.onstart = null;
+  utt.onend = null;
+  utt.onerror = null;
+  utt.onpause = null;
+  utt.onresume = null;
+}
+
+function attachUtteranceEvents(utt, chunkEnd) {
   // charIndex from onboundary is relative to this utterance's text slice,
   // so add currentCharOffset to get the absolute position in currentText.
   utt.onboundary = (e) => {
@@ -137,6 +195,11 @@ function attachUtteranceEvents(utt) {
     notifyBackground({ type: "TTS_RESUMED" });
   };
   utt.onend = () => {
+    if (currentText.slice(chunkEnd).trim()) {
+      speechSynthesis.speak(prepareChunk(chunkEnd));
+      return;
+    }
+    currentUtterance = null;
     currentCharIndex = 0;
     currentCharOffset = 0;
     isTTSPaused = false;
@@ -149,8 +212,15 @@ function attachUtteranceEvents(utt) {
     }, 1500);
   };
   utt.onerror = (e) => {
-    if (e.error === "interrupted" || e.error === "canceled") return;
-    isTTSPaused = false;
+    if (e.error === "interrupted" || e.error === "canceled") {
+      // We detach handlers before our own cancels, so another tab interrupted us.
+      // Null the utterance so stopTTS() doesn't cancel that tab's speech.
+      currentUtterance = null;
+      stopTTS();
+      return;
+    }
+    currentUtterance = null;
+    isTTSPaused = true; // Play retries from the saved position
     setPillState("error");
     notifyBackground({ type: "TTS_STOPPED" });
   };

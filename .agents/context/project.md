@@ -89,8 +89,10 @@ sonorus/
 `window.speechSynthesis` is used directly in content scripts. This gives access to 20–40+ system + Google voices. See `docs/chrome-tts-vs-speech-synthesis.md` for a full comparison — the short reason is that `chrome.tts` is unavailable in content scripts and would require routing every TTS call through `background.js` via message passing.
 
 **Known limitations** — see `docs/web-speech-api-limitations.md` for full details:
-- `speechSynthesis.pause()` / `resume()` are broken in Chrome. The codebase uses a cancel+restart workaround via `resumeTTS()` and tracks position with `onboundary` + `isTTSPaused`.
+- `speechSynthesis.pause()` / `resume()` are broken in Chrome — never call `pause()`. `pauseTTS()` cancels and remembers the position; `resumeTTS()` restarts from it. Position comes from speaking one sentence per utterance plus `onboundary` (which Google network voices never fire).
 - `SpeechSynthesisUtterance.volume` is ignored on macOS — volume control was intentionally removed from the UI.
+
+**One exception — PDFs.** Chrome's PDF viewer has no content script and exposes the selection only to context menus, so text from the "Read aloud with Sonorus" menu that can't reach a content script is spoken in `background.js` via `chrome.tts` (`inBackground` in the TTS state), controlled from the popup. `tts` is in the Chrome manifest only — Firefox and Safari lack `chrome.tts`, so PDFs are unsupported there. A page's `cancel()` can't stop `chrome.tts` speech, so `speakWhenClear()` asks the background to stop it (`STOP_BACKGROUND_TTS`) before every page `speak()`.
 
 ### Vanilla JS, no bundler
 No React, no Webpack, no TypeScript. Edit files in `src/`, reload the extension in `chrome://extensions` — changes are live instantly. Run `npm run build` only for store submission or to stage a Firefox/Safari load.
@@ -122,15 +124,28 @@ All communication is via `chrome.runtime.sendMessage` / `chrome.tabs.sendMessage
 | Direction | Message type | Purpose |
 |---|---|---|
 | content → background | `TTS_STARTED` | TTS began; carries text snippet, speed, voice |
+| content → background | `STOP_BACKGROUND_TTS` | Before a page speaks: stop `chrome.tts` speech; replies once it has ended |
 | content → background | `TTS_PAUSED` | Speech paused |
 | content → background | `TTS_RESUMED` | Speech resumed |
 | content → background | `TTS_STOPPED` | Speech ended or cancelled |
+| content (subframe) → background | `SPEAK_IN_TOP_FRAME` | Text selected in an iframe; relayed to the top frame as `CMD_SPEAK` |
+| content (subframe) → background | `GET_TAB_HOSTNAME` | Top-level hostname, for blocked-site checks |
 | popup → background | `GET_STATE` | Query current TTS status for popup display |
-| popup → background | `PAUSE` / `STOP` / `RESUME` | Quick controls from popup |
+| popup → background | `PAUSE` / `RESUME` / `STOP` | Quick controls from popup, relayed to the playing tab |
+| background → content (top frame) | `CMD_SPEAK` | Play text selected in a subframe |
 | background → content | `CMD_PAUSE` | Background relays pause command to content |
+| background → content | `CMD_RESUME` | Background relays resume command to content |
 | background → content | `CMD_STOP` | Background relays stop command to content |
 
+`background.js` mirrors its TTS state to `chrome.storage.session` so it survives the service worker being killed when idle (Firefox < 115 has no `storage.session` and keeps it in memory only). Only the frame (tab + frameId) that sent the latest `TTS_STARTED` may change it.
+
 `content-state.js` defines `notifyBackground(msg)` — a helper that wraps all `sendMessage` calls and silences errors when the extension context is invalidated (e.g. after a reload).
+
+### Shadow DOM
+In Chrome, `document.getSelection()` can't see into shadow trees (it reports the host and empty text). `readSelection(path)` in `content-selection.js` takes the mouseup's `composedPath()` and, if it passes through an open shadow root, reads that root's selection — `shadowRoot.getSelection()` in Chrome, else the standard `getComposedRanges()`. Every caller works with its `{ text, anchorNode, range }` snapshot. Closed shadow roots are unreachable from content scripts.
+
+### Iframes
+Content scripts run in every frame (`all_frames`, `match_about_blank`). Subframes only detect selections and show the 🔊 icon. `playText()` sends the text to the top frame, which owns the single pill and speaks it, so the pill is never clipped inside a small iframe. If the top frame has no content script, the subframe plays it itself. A subframe is disabled when either its own hostname or the tab's top-level hostname is blocked. The background tracks `tabId` + `frameId` of the playing frame, so iframes unloading (ads do constantly) can't reset its state.
 
 ### Content script file split
 `content/` is split into 7 files injected in order via `manifest.json`. They all share the same global scope — no bundler or ES modules needed. Load order: `content-state.js` first (declares all shared globals), then TTS/UI/drag/selection modules, then `content-main.js` last (calls `init()`). Never re-declare a shared global with `let`/`const` outside of `content-state.js`.

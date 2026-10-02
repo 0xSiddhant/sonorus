@@ -14,6 +14,7 @@ Firefox requires three things the Chrome manifest doesn't have or handles differ
 | `options_page` | `"settings/settings.html"` | — |
 | `options_ui` | — | `{ "page": "settings/settings.html", "browser_style": false }` |
 | `browser_specific_settings` | Not used | `{ "gecko": { "id": "...", "strict_min_version": "109.0" } }` |
+| `permissions` | includes `"tts"` | no `"tts"` — Firefox has no `chrome.tts`, so reading PDFs via the context menu is Chrome-only |
 
 **Why `scripts` instead of `service_worker`?**
 Firefox MV3 uses an event-page model for background scripts, not a true service worker. Using `scripts` works across all Firefox 109+ versions. Firefox 109 is the minimum because it's the first stable release with full MV3 support.
@@ -49,7 +50,7 @@ All Chrome APIs used by Sonorus map directly to Firefox equivalents under the `c
 
 Firefox has limited support for `SpeechSynthesisUtterance.onboundary`. In Chrome, this event fires at every word boundary during playback, which Sonorus uses to drive the progress bar in the pill player. In Firefox, this event fires inconsistently or not at all for word boundaries.
 
-**Impact:** The progress bar in the floating pill player will not move during playback on Firefox. Playback itself (start, stop, pause/resume workaround, pill UI) works correctly — only the word-by-word progress indicator is affected.
+**Impact:** Sonorus speaks text one sentence-sized chunk at a time, so on Firefox the progress bar advances per sentence rather than per word, and pause/resume restarts from the current sentence. See [`web-speech-api-limitations.md`](web-speech-api-limitations.md#network-voices-never-fire-onboundary).
 
 This is a [long-standing Firefox bug](https://bugzilla.mozilla.org/show_bug.cgi?id=1567000) with no timeline for a fix.
 

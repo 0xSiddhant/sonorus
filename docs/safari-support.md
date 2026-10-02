@@ -156,6 +156,8 @@ Playback was **verified working on Safari 26.5 / macOS 26.5 (July 2026)** — se
 
 Safari's `resume()` is not broken, so this restart path is redundant there rather than necessary. It tested fine, but it's the first thing to check if resume ever starts replaying or skipping words on Safari.
 
+**PDFs aren't supported.** Reading a PDF goes through the context menu and `chrome.tts`, which Safari doesn't implement — the menu item does nothing on PDFs there. Normal pages are unaffected.
+
 **Voice list differs.** Safari exposes the macOS system voices, which are named differently from Chrome's. A `selectedVoiceName` saved on Chrome will not resolve on Safari; playback falls back to the default voice.
 
 ---

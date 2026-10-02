@@ -173,6 +173,7 @@ body {
 }
 .toggle-wrap input:checked + .toggle-slider { background: #7C3AED; }
 .toggle-wrap input:checked + .toggle-slider::before { transform: translateX(18px); }
+.toggle-wrap input:disabled + .toggle-slider { opacity: 0.4; cursor: not-allowed; }
 
 /* Footer */
 .popup-footer {
